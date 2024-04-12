@@ -1,0 +1,762 @@
+---
+title: "RNAseq Differential Gene Expression Analysis"
+author: "Hao He"
+date: "`r Sys.time()`"
+format: html
+editor_options:
+  # output in console or inline
+  chunk_output_type: console
+params:
+  project_dir: "D:/Others/2023-12-04_RNAseq_ETERN_LJJ"
+  # unique identifer, like [symbol, gene_name or ensembl]
+  # suffix of gene expression file
+  # sample info file located in root_dir
+  # directory of expression file
+  # output directory of DESeq2
+  save_Rdata: FALSE
+  run_DEG_cluster: FALSE
+  # species: hs or mm
+  species: "hs"
+  deg_padj: 0.05
+  deg_fc: 1.5
+  deg_mincount: 200
+  counts_uid: "symbol" 
+  counts_file_suffix: "_gene_expression.xlsx"
+  sample_info_file: "sample_info.xlsx"
+  quantification_dir: "quantification"
+  deseq2_dir: "deseq2"
+---
+
+# Setup
+```{r}
+# options("repos" = c(CRAN = "http://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+# options(BioC_mirror = "http://mirrors.tuna.tsinghua.edu.cn/bioconductor")
+
+knitr::opts_chunk$set(echo = TRUE, results = "hold", cache = TRUE)
+
+# rstudioapi::getActiveDocumentContext()$path |>
+#   dirname() |>
+#   setwd()
+setwd(params$project_dir)
+print(getwd())
+
+library(tidyverse)
+library(readxl)
+library(writexl)
+library(DESeq2)
+library(DEGreport)
+library(RColorBrewer)
+library(ggrepel)
+library(lemon)
+library(factoextra)
+library(patchwork)
+library(cowplot)
+library(pheatmap)
+library(corrplot)
+
+species <- params$species
+deg_padj <- params$deg_padj
+deg_fc <- params$deg_fc
+deg_mincount <- params$deg_mincount
+counts_uid <- params$counts_uid
+sample_info_file <- params$sample_info_file
+counts_file_suffix <- params$counts_file_suffix
+deseq2_dir <- params$deseq2_dir
+quantification_dir <- params$quantification_dir
+run_DEG_cluster <- params$run_DEG_cluster
+save_Rdata <- params$save_Rdata
+
+if(!dir.exists(deseq2_dir)) dir.create(deseq2_dir)
+```
+
+
+# Prepare colData
+
+```{r}
+# read sample info
+sample <- normalizePath(sample_info_file) %>% 
+  read_xlsx(sheet="sample", col_types="text")
+
+# check sample info if project_id and sample_name were unique
+if(length(sample$project_id) != unique(length(sample$project_id))) {
+  stop("check samples file, `project_id` were not unique")
+} else {
+  if(length(sample$sample_name) != unique(length(sample$sample_name))) {
+    stop("check samples file, `sample_name` were not unique")
+  }
+}
+
+# read contrast info
+contrast_info <- normalizePath(sample_info_file) %>% 
+  read_xlsx(sheet="contrast", range="A1:C100", col_types="text")
+
+# construct contrast
+contrast <- na.omit(contrast_info$contrast) %>% 
+  seq_along() %>% 
+  map(\(x) c(contrast_info$contrast[x], contrast_info$control[x]))
+
+# subset & filter sample info
+sample <- c("project_id", "sample_name", "include", "batch") %>% 
+  c(na.omit(contrast_info$comparison)) %>% 
+  sample[, .] %>% 
+  filter(include=="yes")
+
+# construct sample contrasts according to sample info colData
+sample$contrast <- na.omit(contrast_info$comparison) %>% 
+  sample[, .] %>% 
+  apply(1, paste, collapse=".") %>% 
+  factor(., levels=unique(.))
+
+# check if contrast has its relative items in sample_info$condition
+if(!all(as.factor(unlist(contrast)) %in% sample$contrast)) 
+  stop("not all 'contrast' vs 'control' were found in sample definition, please check it")
+
+# prepare colData
+col_data <- data.frame(batch = sample$batch, 
+                       contrast = sample$contrast) %>% 
+  magrittr::set_rownames(sample$sample_name)
+
+# show sample info
+print(sample)
+```
+
+# Prepare count matrix
+
+```{r}
+# look for expr file
+expr_file <- list.files(quantification_dir, counts_file_suffix) %>% 
+  str_subset("^~", negate = T) # remove tmp file when file opened in windows
+
+# check expression file exist
+if(length(expr_file) == 0) {
+  stop(str_glue("can't find '{counts_file_suffix}'"))
+} else {
+  # check unique
+  if(length(expr_file) > 1) {
+    print(str_glue("more than one '{counts_file_suffix}', use last one"))
+    expr_file <- last(expr_file)
+    print(expr_file)
+  }
+}
+
+# read counts
+counts <- file.path(quantification_dir, expr_file) %>% 
+  read_xlsx(sheet = "counts")
+
+# remove samples not include (include = no) and convert to matrix
+counts <- counts[, c(counts_uid, sample$sample_name)] %>% 
+  filter(!is.na(!!as.name(counts_uid))) %>%
+  distinct(!!as.name(counts_uid), .keep_all = T) %>%
+  column_to_rownames(counts_uid)
+print(str_glue("before row filter: {nrow(counts)}"))
+
+# filter low count genes within each group
+counts <- unique(sample$contrast) %>% 
+  as.character() %>% 
+  map(\(x) filter(sample, contrast==x) %>% 
+        pull(sample_name) %>% 
+        counts[, ., drop=FALSE] %>% 
+        rowMeans() %>% 
+        # at least one group has mean counts > X
+        magrittr::is_greater_than(10) %>% 
+        rownames(counts)[.]) %>% #lengths()
+  unlist() %>%
+  unique() %>% 
+  counts[., ] %>% 
+  round()
+print(str_glue("after row filter: {nrow(counts)}"))
+```
+
+# DESeq2 object
+
+```{r}
+# check if batch data included
+include_batch <- length(unique(col_data$batch)) > 1
+
+if(include_batch) {
+  deseq_matrix <- DESeqDataSetFromMatrix(
+    countData = counts, colData = col_data, 
+    design = ~ batch + contrast)
+} else {
+  deseq_matrix <- DESeqDataSetFromMatrix(
+    countData = counts, colData = col_data, 
+    design = ~ contrast)
+}
+
+# 2021-06-10
+# This seems to be a complicated side-effect of a change to BiocParallel
+# deseq.wald <- DESeq(deseq.matrix, parallel = TRUE)
+# pair-wise wald test
+deseq_wald <- DESeq(deseq_matrix)
+
+# dispersion estimation
+plotDispEsts(deseq_wald)
+```
+
+# Exploratory analysis
+
+```{r}
+# vst transformation
+vst <- vst(deseq_wald, blind = F)
+vst_mat <- assay(vst)
+
+# batch effect
+if(include_batch) {
+  print("perform batch correction")
+  vst_mat <- limma::removeBatchEffect(
+    vst_mat, vst$batch, 
+    design = model.matrix(~ vst$contrast))
+}
+
+# top N variable genes heatmap
+N <- 2000
+top_variable_genes <- rowVars(vst_mat) %>% 
+  order(decreasing = T) %>% 
+  .[1:N] %>% 
+  vst_mat[., ] %>% 
+  pheatmap(
+    scale = "row",
+    border_color = NA,
+    col = colorRampPalette(c("#377eb8", "#f7f7f7", "#e41a1c"))(100),
+    # col = colorRampPalette(c("#377eb8", "#f7f7f7", "#e41a1c"))(100)
+    show_rownames = F, 
+    cluster_cols = F, 
+    cluster_rows = T,
+    annotation_col = col_data[, "contrast", drop = F], 
+    filename = str_glue("{deseq2_dir}/{Sys.Date()}_variable_genes_heatmap_top{N}.pdf"),
+    width = ceiling(nrow(col_data)/4), 
+    height = ceiling(nrow(col_data)/5),
+    main = str_glue("Heatmap of top {N} variable genes")
+  )
+
+# sample to sample correlation
+vst_mat %>% 
+  cor(method = "pearson") %>% 
+  pheatmap(
+    scale = "none", 
+    border_color = NA,
+    cluster_cols = F, 
+    cluster_rows = F,
+    col = colorRampPalette(brewer.pal(9, "Blues"))(255),
+    annotation_col = col_data[, "contrast", drop = F], 
+    annotation_row = col_data[, "contrast", drop = F], 
+    filename = str_glue("{deseq2_dir}/{Sys.Date()}_sample_correlation.pdf"),
+    width = ceiling(nrow(col_data)/2), 
+    height = ceiling(nrow(col_data)/2) - 1.5,
+    main = str_glue("Sample distance using all expressed genes")
+  )
+
+# sample to sample correlation (use corrplot)
+pdf(str_glue("{deseq2_dir}/{Sys.Date()}_sample_correlation2.pdf"),
+    width = ceiling(ncol(vst_mat)/2), 
+    height = ceiling(ncol(vst_mat)/2))
+vst_mat %>% 
+  cor(method = "pearson") %>% 
+  corrplot.mixed(
+    lower = "number", upper = "ellipse",
+    order = "hclust",
+    tl.cex = 0.4,
+    number.cex = 0.6,
+    number.digits = 3,
+    lower.col=colorRampPalette(c("#386cb0","white","#d73027"))(200),
+    upper.col=colorRampPalette(c("#386cb0","white","#d73027"))(200),
+    tl.col="black")
+while(dev.cur() != 1) dev.off() 
+
+
+# PCA
+pca <- t(vst_mat) %>% prcomp(scale. = T)
+
+# screenplot
+p1 <- fviz_eig(pca, addlabels = T) + 
+  labs(title=NULL) +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+# indivuals
+p2 <- pca %>% 
+  fviz_pca_ind(
+    axes = c(1, 2), 
+    geom = c("point", "text"), 
+    repel = TRUE, labelsize = 1, 
+    pointshape = 19, pointsize = 2, 
+    col.ind = sample$contrast,
+    # fill.ind = sample$contrasts,
+    addEllipses = TRUE, ellipse.type = "confidence", ellipse.level = 0.95, 
+    invisible = "quali", legend.title = ""
+  ) +
+  labs(title=NULL) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        legend.position = "top",
+        legend.key.size = unit(0.02, 'snpc'),
+        legend.text = element_text(size=4))
+ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_sample_pca.pdf"), 
+        p1 + p2 + plot_layout(widths = c(3, 2)), 
+        width=9, height=4)
+
+
+# # MDS using Euclidean Distance
+# mds <- t(vst_mat) %>%
+#   dist(method="euclidean") %>%
+#   as.matrix() %>%
+#   cmdscale() %>% 
+#   as.data.frame() %>% 
+#   magrittr::set_colnames(c("MDS1", "MDS2")) %>% 
+#   as_tibble(rownames="sample") %>% 
+#   left_join(as_tibble(col_data, rownames="sample"),
+#             by = join_by(sample))
+# 
+# # plot mds
+# p <- mds %>% 
+#   ggplot(aes(MDS1, MDS2, color=contrast)) +
+#   geom_point(size=2) +
+#   geom_mark_ellipse(expand = unit(0.1,"mm")) +
+#   # stat_ellipse(show.legend = F) +
+#   geom_text_repel(aes(label=sample), size=1) +
+#   theme_bw() +
+#   theme(legend.position = "top",
+#         panel.grid = element_blank(),
+#         legend.title = element_blank(),
+#         legend.text = element_text(size=4))
+# ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_sample_mds_euclidean_distance.pdf"), 
+#         p, width=4, height=4)
+
+
+# MDS using Poisson Distance
+require("PoiClaClu")
+poisd <- counts(deseq_wald, normalize=F) %>% 
+  t() %>% 
+  PoiClaClu::PoissonDistance() %>% 
+  .$dd %>% 
+  as.matrix() %>% 
+  magrittr::set_colnames(colnames(deseq_wald)) %>% 
+  magrittr::set_rownames(colnames(deseq_wald))
+mds <- poisd %>% 
+  cmdscale() %>% 
+  as.data.frame() %>% 
+  magrittr::set_colnames(c("MDS1", "MDS2")) %>% 
+  as_tibble(rownames="sample") %>% 
+  left_join(as_tibble(col_data, rownames="sample"),
+            by = join_by(sample))
+
+# plot mds
+p <- mds %>% 
+  ggplot(aes(MDS1, MDS2, color=contrast)) +
+  geom_point(size=2) +
+  ggforce::geom_mark_ellipse(expand = unit(0.1,"mm")) +
+  geom_text_repel(aes(label=sample), size=1) +
+  theme_bw() +
+  theme(legend.position = "top",
+        panel.grid = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size=4))
+ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_sample_mds_poisson_distance.pdf"), 
+        p, width=4, height=4)
+```
+
+
+# DEG functions
+```{r}
+
+#' @name plot_volcano
+#' @title plot volcano
+#' @description plot volcano plot for DESeq2 pariwise compare result
+#'
+#' @param res a data.drame from DESeq2 result
+#' @param fc_thred foldchange cutoff, corelated to log2FoldChange column, high value mean less filter
+#' @param padj_thred p.adjust cutoff, corelated to padj column, high value mean less filter
+#' @param size point size
+#' @param alpha point transparency
+#' @param title plot title
+#' @param xlim two element numeric vector, restrict x axis, default: NULL
+#' @param ylim two element numeric vector, restrict y axis, default: NULL
+#' @param ns_resampling numeric, downsampling NS points
+#' @param color three element character vector, map point color, ordered by down-regulated, ns, up-regulated
+#'
+#' @importFrom dplyr filter mutate if_else sample_n bind_rows %>%
+#' @importFrom rlang sym !!
+#' @import ggplot2
+#'
+#' @return ggplot2 object
+#'
+#' @export
+#'
+plot_volcano <- function(res,
+                         fc_thred=1.5,
+                         padj_thred=0.05,
+                         size=1.5,
+                         alpha=0.7,
+                         title="Volcano of DEGs",
+                         xlim=NULL, # c(-5, 5)
+                         ylim=NULL, # c(0, 20)
+                         ns_resampling=2000,
+                         color=c("#0571b0", "#bababa", "#ca0020")
+                         ) {
+  df <- filter(res, !is.na(symbol), !is.na(padj)) %>%
+    mutate(`-log10(padj)`=-log10(padj))
+  # take sig genes
+  df.sig <- filter(df, padj < padj_thred, abs(log2FoldChange) > log2(fc_thred)) %>%
+    mutate(direction=if_else(log2FoldChange > 0, "up", "down"))
+  # sample un-sig genes,  fo reducing rendering points
+  df.unsig <- filter(df, padj >= padj_thred) %>%
+    sample_n(size=ns_resampling) %>%
+    mutate(direction="ns")
+  # merge sig and un-sig
+  df.merge <- bind_rows(df.sig, df.unsig)
+
+  # set lims
+  df.merge$shape <- "inrange"
+  if(!is.null(xlim)) {
+    df.merge <- df.merge %>%
+      mutate(shape=if_else(log2FoldChange > xlim[2] | log2FoldChange < xlim[1], "outrange", "inrange")) %>%
+      mutate(log2FoldChange=if_else(log2FoldChange > xlim[2], xlim[2],
+                                    if_else(log2FoldChange < xlim[1], xlim[1], log2FoldChange)))
+    }
+  if(!is.null(ylim)) {
+    df.merge <- df.merge %>%
+      mutate(shape=if_else(`-log10(padj)` > ylim[2] | `-log10(padj)` < ylim[1], "outrange", shape)) %>%
+      mutate(`-log10(padj)`=if_else(`-log10(padj)` > ylim[2], ylim[2],
+                                    if_else(`-log10(padj)` < ylim[1], ylim[1], `-log10(padj)`)))
+  }
+
+  # plot
+  plot <- ggplot(df.merge, aes(log2FoldChange, `-log10(padj)`)) +
+    geom_point(aes(shape=shape, fill=direction), size=size, alpha=alpha, stroke=0) +
+    scale_shape_manual(values=c(inrange=21, outrange=24)) +
+    scale_fill_manual(values=c(down=color[1], ns=color[2], up=color[3])) +
+    geom_vline(xintercept=c(-log2(fc_thred), log2(fc_thred)), linetype="dashed") +
+    geom_hline(yintercept=-log10(padj_thred), linetype="dashed") +
+    labs(x="log2 (FoldChange)", y="-log10 (p.adj)", 
+         title=title, 
+         subtitle=str_glue(
+           "padj_threshold: {padj_thred}, FoldChange_threshold: {fc_thred}")) +
+    theme_bw()
+  
+  if("ggrastr" %in% installed.packages()) plot <- ggrastr::rasterize(plot)
+
+  return(plot)
+}
+
+```
+
+# DEG result
+
+```{r}
+# deseq2 wald test result extract
+if(length(contrast) > 0) {
+  deg_list <- list()
+  for (i in seq_along(contrast)) {
+    cat(str_c(">>>>>>>> testing DEGs on: ", 
+              contrast[[i]][1], "_vs_", contrast[[i]][2]))
+    
+    # get result
+    deg_unshrink <- results(
+      deseq_wald, 
+      contrast = c("contrast", contrast[[i]][1], contrast[[i]][2]) )
+    
+    # shrink LFC
+    deg_shrink <- lfcShrink(
+      deseq_wald, 
+      contrast = c("contrast", contrast[[i]][1], contrast[[i]][2]), 
+      svalue = T,
+      type = "ashr", quiet = T)
+    summary(deg_shrink)
+    
+    # merge stats, p values with deg_shrink result
+    result <- left_join(
+      as_tibble(deg_shrink, rownames="symbol"),
+      as_tibble(deg_unshrink, rownames="symbol") %>% 
+        dplyr::select(symbol, stat, pvalue, padj),
+      by = join_by(symbol)) %>% 
+      mutate(baseMean=round(baseMean),
+             log2FoldChange=round(log2FoldChange,3),
+             lfcSE=round(lfcSE,3),
+             stat=round(stat, 3)
+      ) %>% 
+      relocate(stat, .before = svalue) %>% 
+      arrange(svalue, desc(abs(log2FoldChange)))
+    
+    # append to results list
+    result <- list(result) %>% 
+      set_names(str_glue("{contrast[[i]][1]}_vs_{contrast[[i]][2]}"))
+    deg_list <- append(deg_list, result)
+  }
+  
+  # save deg reslut
+  write_xlsx(
+    deg_list,
+    str_glue("{deseq2_dir}/{Sys.Date()}_wald_test_result.xlsx"))
+  
+  # volcano plot
+  deg_list %>% 
+    imap(\(x,y) plot_volcano(
+      x, 
+      fc_thred=deg_fc, padj_thred=deg_padj,
+      title=y, size=1, alpha=0.5, 
+      xlim=c(-7.5, 7.5),ylim=c(0, 120))) %>% 
+    wrap_plots(nrow=1) %>% 
+    ggsave2(str_glue(
+      "{deseq2_dir}/{Sys.Date()}_wald_test_volcano.pdf"), 
+      ., width=ceiling(length(deg_list)*5), 
+      height=4, 
+      limitsize = F) 
+}
+```
+
+
+# DEG from LRT or not
+
+```{r}
+if(T) {
+  print("use wald test result as DEGs")
+  deg <- map(deg_list, 
+              \(x) filter(x, 
+                          baseMean > deg_mincount, 
+                          abs(log2FoldChange) > log2(deg_fc),
+                          padj < deg_padj) %>% 
+                pull(symbol) 
+              ) %>%
+    unlist() %>% 
+    unique()
+  
+} else {
+  
+  print("use LRT result as DEGs")
+  
+  # LRT test
+  deseq_lrt <- DESeqDataSetFromMatrix(
+    countData = counts, colData = col_data, design = ~ contrast) %>%
+    DESeq(test = 'LRT', reduced = ~ 1)
+  
+  # get LRT result
+  lrt_result <- results(deseq_lrt) %>% 
+    as_tibble(rownames='symbol')
+  
+  deg <- lrt_result %>%
+    filter(baseMean > deg_mincount,
+           abs(log2FoldChange) > log2(deg_fc),
+           padj < deg_padj) %>% 
+    pull(symbol) %>% 
+    unique()
+}
+
+print(str_glue("Number of deg: {length(deg)}"))
+```
+
+# DEG cluster
+
+```{r}
+if(run_DEG_cluster) {
+  # deg patterns
+  cat("DEG expression clustering\n")
+  
+  # get pattern
+  # degPatterns require time in metadata must be factor
+  # you may modify here as wanted
+  metadata <- col_data %>% 
+    mutate(contrast = factor(contrast, unique(col_data$contrast)))
+  pattern <- vst_mat[deg, ] %>%
+    degPatterns(metadata = metadata, 
+                time = "contrast", 
+                # col = "",
+                minc = 10, reduce = T, plot = F)
+  
+  # read tpm if sheet existed
+  if("tpm" %in% excel_sheets(file.path(quantification_dir, expr_file))) {
+    print("use tpm")
+    dat <- file.path(quantification_dir, expr_file) %>% 
+      read_xlsx(sheet = "tpm") %>% 
+      select(!!as.name(counts_uid), all_of(rownames(metadata)))
+    dat_source <- "tpm"
+  } else {
+    print("use normalized counts")
+    dat <- counts(deseq_wald, normalize=T) %>% 
+      as_tibble(rownames="symbol")
+    dat_source <- "counts_norm"
+  }
+  
+  # prepare data
+  dat_raw <- pattern$df %>% 
+    as_tibble(rownames="symbol") %>% 
+    left_join(dat, by=join_by(symbol==!!as.name(counts_uid))) %>% 
+    list() %>% 
+    set_names(dat_source)
+  dat_plot <- pattern$normalized %>% 
+    as_tibble() %>% 
+    dplyr::select(genes:cluster) %>% 
+    left_join(pattern$normalized %>% 
+                distinct(genes, cluster) %>% 
+                reframe(n_genes=n(), .by=c(cluster)),
+              by=join_by(cluster==cluster)) %>% 
+    mutate(cluster=str_glue("C{cluster} (N:{n_genes})")) %>% 
+    list() %>% 
+    set_names("data_for_plot")
+  
+  # save data
+  write_xlsx(c(dat_raw, dat_plot), 
+             path = str_glue(
+               "{deseq2_dir}/{Sys.Date()}_deg_clusters.xlsx"))
+  
+  # save plot
+  p <- dat_plot$data_for_plot %>% 
+    ggplot(aes(contrast, value, color=cluster)) +
+    geom_boxplot(outlier.color = NA, alpha=0.7, show.legend = F) +
+    # geom_point(position = position_jitterdodge(dodge.width = 0.9)) +
+    # geom_point(ae s(group=treat), size=2,
+    #            position = position_dodge2(0.8),
+    #            data=pattern[["normalized"]] %>% 
+    #              reframe(value=mean(value,trim=0.05), 
+    #                      .by=c(treat, time, cluster))) +
+    geom_line(aes(group = 1), linewidth = 1,
+              position = position_dodge2(0.8),
+              data = dat_plot$data_for_plot %>% 
+                reframe(value = mean(value, trim=0.05), 
+                        .by = c(cluster, contrast)),
+              show.legend = F) +
+    # scale_color_manual(values = c("#525252", "#99000d")) +
+    scale_color_brewer(palette = "Dark2", direction = 1) +
+    facet_rep_wrap(~ cluster, ncol=5, repeat.tick.labels=T) + 
+    labs(x="", y="Normalized gene expression") +
+    theme_bw(12) + 
+    theme(axis.text.x = element_text(angle=30, vjust = 1, hjust = 0.9),
+          strip.background = element_rect(fill=NA),
+          panel.grid = element_blank(),
+          legend.position = "top")
+  
+  n_xaxis <- length(unique(dat_plot$data_for_plot$contrast))
+  n_col <- min(5, length(unique(dat_plot$data_for_plot$cluster)))
+  n_row <- ceiling(length(unique(dat_plot$data_for_plot$cluster)) / n_col) * 1.2
+  ggsave2(str_glue(
+    "{deseq2_dir}/{Sys.Date()}_deg_cluster.pdf"),
+    p, 
+    width = n_row*n_xaxis*1.5, 
+    height = n_row * 3, 
+    limitsize = F)
+  
+}
+```
+
+# DEG heatmap
+
+```{r}
+# prepare deg heatmap data
+if("tpm" %in% excel_sheets(file.path(quantification_dir, expr_file))) {
+  print("deg heatmap use tpm")
+  dat <- file.path(quantification_dir, expr_file) %>% 
+    read_xlsx(sheet = "tpm") %>% 
+    # rename(symbol=!!as.name(counts_uid)) %>%
+    filter(symbol %in% deg) %>% 
+    # select used samples
+    select(all_of(c("symbol", sample$sample_name))) %>% 
+    list() %>% 
+    set_names("tpm")
+} else {
+  print("deg heatmap use normalized counts")
+  dat <- vst_mat %>% 
+    as_tibble(rownames="symbol") %>% 
+    filter(symbol %in% deg) %>% 
+    list() %>% 
+    set_names("counts_vst")
+}
+# remove replicated rownames
+dat[[1]] <- dat[[1]] %>% 
+  distinct(symbol, .keep_all = T)
+
+# gene cluster annotation
+if(run_DEG_cluster) {
+  anno_row <- pattern$df %>% 
+  mutate(genes=NULL, cluster=str_glue("C{cluster}"))
+} else {anno_row <- NA}
+
+# metadata annotation
+anno_col <- col_data %>% 
+  mutate(contrast = factor(contrast, unique(col_data$contrast))) %>% 
+  mutate(batch=NULL)
+
+# save heatmap
+p <- dat[[1]] %>% 
+  column_to_rownames("symbol") %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  pheatmap(
+    scale = "row", 
+    border_color = NA,
+    col = colorRampPalette(c("#377eb8", "#f7f7f7", "#e41a1c"))(100),
+    # col = colorRampPalette(c("#377eb8", "#f7f7f7", "#e41a1c"))(100)
+    annotation_col = anno_col, 
+    annotation_row = anno_row, 
+    show_rownames = F,
+    show_colnames = T,
+    angle_col = 45,
+    filename = str_glue("{deseq2_dir}/{Sys.Date()}_deg_heatmap.pdf"),
+    width = ceiling((nrow(col_data)-1)/2), 
+    height = ceiling((nrow(col_data)-1)/2),
+    main = str_glue("DEG heatmap (N={nrow(dat[[1]])})")
+  )
+
+# save heatmap data
+ht_data <- dat[[1]] %>% 
+  column_to_rownames("symbol") %>% 
+  .[p$tree_row$order, p$tree_col$order] %>% 
+  rownames_to_column("symbol") %>% 
+  as_tibble() %>% 
+  list() %>% 
+  set_names("data_for_heatmap")
+write_xlsx(c(dat, ht_data), str_glue(
+  "{deseq2_dir}/{Sys.Date()}_deg_heatmap.xlsx"))
+
+```
+
+
+# Save data
+
+```{r}
+if(save_Rdata) {
+  save.image(str_glue("RNAseq_DESeq2_{Sys.Date()}.RData"))
+  # saveRDS(deseq_wald, str_glue("{Sys.Date()}_deseq2_wald.rds"))
+}
+
+# load data
+# list.files(pattern = "^RNAseq_DESeq2_.*RData$")
+# load(list.files(pattern = "^RNAseq_DESeq2_.*RData$")[1])
+# load("RNAseq_DESeq2_2021-01-28.RData")
+```
+
+
+# Plot indivuals
+
+```{r, eval=F}
+# get counts data
+genes_roi <- c("KLK3","CHRNA2","SLC45A3","TMPRSS2","FKBP5","NKX3-1","MYC")
+
+genes_roi_indeed <- c()
+gene_counts_list <- list()
+for(i in seq_along(genes_roi)) {
+  
+  if(!genes_roi[i] %in% rownames(deseq.wald)) {
+    print(str_glue("{genes_roi[i]} was not found, please check spelling name"))
+    next
+  }
+  genes_roi_indeed <- c(genes_roi_indeed, genes_roi[i])
+  gene_counts <- plotCounts(deseq.wald, gene = genes_roi[i], 
+                            intgroup = "condition", returnData = TRUE)
+  gene_counts_list <- list.append(gene_counts_list, gene_counts)
+}
+names(gene_counts_list) <- genes_roi_indeed
+
+# plot counts
+plot <- gene_counts_list %>% 
+  bind_rows(.id = "gene") %>%
+  ggplot(aes(condition, count, fill=condition)) +
+  geom_jitter(shape=21, color="transparent", width = 0.25) +
+  facet_wrap(~gene, scales = "free", ncol = 4) +
+  labs(x = "", y = "Normalized counts") +
+  theme_bw(base_size = 12) +
+  theme(axis.text.x = element_text(angle=90, vjust = 0.5, hjust = 1), 
+        legend.position = "none")
+
+save_plot(str_glue("{Sys.Date()}_normalized_counts_plot.pdf"), 
+          plot, 
+          base_height = 2.5*ceiling(length(gene_counts_list)/4), 
+          base_width = 8)
+```
+

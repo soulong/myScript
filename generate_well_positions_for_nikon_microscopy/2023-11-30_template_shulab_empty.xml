@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<variant version="1.0">
+  <no_name runtype="CLxListVariant">
+    <bIncludeZ runtype="bool" value="false"/>
+    <bPFSEnabled runtype="bool" value="true"/>
+  </no_name>
+</variant>

@@ -1,0 +1,639 @@
+---
+title: "cell with spot analysis"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+## load packages
+```{r}
+#| echo: false
+rstudioapi::getActiveDocumentContext()$path |>
+  dirname() |>
+  setwd()
+
+# load packages
+library(tidyverse)
+library(cowplot)
+library(lemon)
+library(ggridges)
+```
+
+## read cellprofiler db
+```{r}
+# load function
+source("D:/Script/R_functions/read_sqlite.R")
+
+# read db
+raw <- read_sqlite("cp_result.db")
+# raw <- map("cp_result.db", read_sqlite) %>% 
+#   bind_rows(.id="Metadata_source")
+
+glimpse(raw$image)
+glimpse(raw$objects)
+```
+
+
+## define magnification
+```{r}
+magification <- "100x"
+image_width <- unique(raw$image$Image_Width)
+
+# unit: um
+objective_view <- c("100x" = 133, "60x" = 221, "20x" = 600)
+length_per_pixel <- objective_view[magification] * (1/image_width)
+print(str_glue("per pixel length: {round(length_per_pixel, 3)} uM"))
+```
+
+## metadata position
+```{r}
+position_meta <- read_csv("position_metadata.csv") %>% 
+  # some rows were skipped cause incorrect focus
+  filter(!is.na(`P Index`)) %>% 
+  select(Metadata_prefix = prefix, 
+           Metadata_position = `P Index`,
+           Metadata_position_name = `Position Name`)
+
+if(is.na(position_meta$Metadata_position_name[1])) {
+  # you should edit position data here if no position name
+  print("no position name found, should edit it here")
+  position_meta <- position_meta %>% 
+    mutate(Metadata_well = case_when(
+      Metadata_position %in% 1:10 ~ "SURF-MIFP-V3+mCherry",
+      Metadata_position %in% 11:20 ~ "SURF-EBFP2-V3+mCherry",
+      Metadata_position %in% 21:30 ~ "SURF-MIFP-V3+MCHERRY+RBD-EBFP2-HOT3",
+      Metadata_position %in% 31:40 ~ "SURF-EBFP2-V3+MCHERRY+RBD-MIFP-HOT3",
+      Metadata_position %in% 41:50 ~ "SURF-EBFP2-V3+IFP2+RBD-MCHERRY-HOT3",
+      Metadata_position %in% 51:60 ~ "300ng CPSURF-EBFP2-V1+IFP2",
+      Metadata_position %in% 61:70 ~ "300ng CPSURF-EBFP2-V1+IFP2+600ng SHC1-MRuby",
+      Metadata_position %in% 71:80 ~ "300ng CPSURF-EBFP2-V1+IFP2+300ng SHC1-MRuby",
+      Metadata_position %in% 81:90 ~ "300ng CPSURF-EBFP2-V1+IFP2+100ng SHC1-MRuby"
+    ) %>% 
+      factor(c("SURF-MIFP-V3+mCherry","SURF-EBFP2-V3+mCherry","SURF-MIFP-V3+MCHERRY+RBD-EBFP2-HOT3","SURF-EBFP2-V3+MCHERRY+RBD-MIFP-HOT3","SURF-EBFP2-V3+IFP2+RBD-MCHERRY-HOT3","300ng CPSURF-EBFP2-V1+IFP2","300ng CPSURF-EBFP2-V1+IFP2+600ng SHC1-MRuby","300ng CPSURF-EBFP2-V1+IFP2+300ng SHC1-MRuby","300ng CPSURF-EBFP2-V1+IFP2+100ng SHC1-MRuby") %>% rev()),
+    Metadata_field = Metadata_position)
+  
+} else {
+  # get position name data
+  position_meta <- position_meta %>% 
+    {
+      if(F) {
+        # by well format
+        separate_wider_delim(., Metadata_position_name, 
+                             "#",
+                             names = c("Metadata_well", 
+                                       "Metadata_field"),
+                             cols_remove = F)
+      } else {
+        # default setting
+        mutate(., Metadata_well = Metadata_position_name,
+               Metadata_field = Metadata_position)
+        
+        # # by manual defined format
+        # separate_wider_delim(., Metadata_position_name, 
+        #                      "_",
+        #                      names = c("Metadata_SURF_PPI", 
+        #                                "Metadata_Cofactor"),
+        #                      cols_remove = F) %>% 
+        #   mutate(Metadata_position_name = factor(
+        #     Metadata_position_name, 
+        #     unique(.[["Metadata_position_name"]])
+        #   ))
+        
+      }
+    }
+}
+
+position_meta
+```
+
+## metadata plate info
+```{r}
+# load function
+source("D:/Script/R_functions/read_plate_reader.R")
+
+# get plate info
+plate_info_f <- "plate_info.xlsx"
+
+if(file.exists(plate_info_f)) {
+  plate_info <- plate_info_f %>%
+    map_dfr(read_plate_info_1, add_directory=F) %>% 
+    separate_wider_delim(Metadata_group, delim = "+",
+                         names = c("Metadata_vectorFP", "Metadata_addFP"),
+                         too_few = "align_start",
+                         cols_remove = F) %>% 
+    separate_wider_delim(Metadata_vectorFP, delim = "-",
+                         names = c("Metadata_vector", NA),
+                         too_few = "align_start",
+                         cols_remove = F) %>% 
+    mutate(across(c(Metadata_group, Metadata_vectorFP, 
+                    Metadata_vector, Metadata_addFP), 
+                  ~ replace_na(.x, ""))) %>% 
+    mutate(Metadata_group = factor(Metadata_group, 
+                                   levels=unique(Metadata_group)))
+  
+  plate_info
+  
+} else {
+  plate_info <- NULL
+}
+
+```
+
+## tidy image
+```{r}
+image <- raw$image %>% 
+  select(!c(starts_with("Image_Count_"),
+            matches("Image_Intensity_Percentile_[25]_.*"))) %>% 
+  rename_with(\(x) str_replace(x, "Intensity_Percentile_1", "bg"))
+
+# merge with position meta
+image <- right_join(position_meta, image) %>% 
+  {
+    if(is.null(plate_info)){
+      .
+    } else {
+      right_join(plate_info, .)
+    }
+  }
+
+glimpse(image)
+```
+
+
+## tidy cell
+```{r}
+# glimpse(raw$objects$cell)
+cell <- raw$objects$cell %>% 
+  select(!any_of(c("Parent_mask_cp_masks_cell",
+                   "Children_spot_Count"))) %>% 
+  right_join(image, ., 
+             by=join_by(ImageNumber)) %>% 
+  # scale pixel to actual length
+  mutate(across(matches(
+    "(Area)|(Diameter)|(AxisLength)|(Radius)|(Perimeter)$"),
+    \(x) x * length_per_pixel))
+
+glimpse(cell)
+
+# # cell wo spot
+# cell_wo_spot <- raw$objects$cell_wo_spot %>% 
+#   select(ImageNumber,
+#          ends_with("Parent_cell"),
+#          contains("_Intensity_")
+#   )
+# # glimpse(cell_wo_spot)
+# 
+# # cell + cell wo spot
+# cell <- cell %>% 
+#   left_join(cell_wo_spot,
+#             by=join_by(
+#               ImageNumber,
+#               cell_Number_Object_Number == cell_wo_spot_Parent_cell))
+# glimpse(cell)
+# 
+# # remove unneeded variables
+# rm(cell_wo_spot)
+```
+
+## tidy spot
+```{r}
+# glimpse(raw$objects$spot)
+spot <- raw$objects$spot %>% 
+  select(!any_of(c("spot_Children_cell_wo_spot_Count"))) %>% 
+  select(!c(contains("RadialDistribution_FracAtD"),
+            contains("RadialDistribution_RadialCV"))) %>% 
+  select(!setdiff(contains("AreaShape"), 
+                  matches("(EquivalentDiameter)|(FormFactor)|(Solidity)"))) %>%
+  # spot_Parent_cell==0 means related to background
+  filter(spot_Parent_cell != 0) %>% #glimpse()
+  # scale pixel to actual length
+  mutate(across(matches(
+    "(Area)|(Diameter)|(AxisLength)|(Radius)|(Perimeter)$"),
+    \(x) x * length_per_pixel)) %>% 
+  right_join(cell, ., 
+             by=join_by(
+               ImageNumber,
+               cell_Number_Object_Number == spot_Parent_cell))
+
+glimpse(spot)
+
+# # spot rbg
+# spot_rbg <- raw$objects$spot_rbg %>% 
+#   select(ImageNumber,
+#          contains("Parent_spot_expand_l"),
+#          contains("Intensity"))
+# # glimpse(spot_rbg)
+# 
+# # spot + spot rbg
+# spot <- spot %>% 
+#   left_join(spot_rbg,
+#             by=join_by(
+#               ImageNumber,
+#               spot_Number_Object_Number == spot_rbg_Parent_spot_expand_l))
+# glimpse(spot)
+# 
+# # remove unneeded variables
+# rm(spot_rbg)
+```
+
+## subtract background
+```{r}
+# get all channel names
+channels <- colnames(image) %>% 
+  str_subset("Image_bg") %>% 
+  str_replace_all("Image_bg_", "")
+
+# process one channel each time
+for(ch in channels) {
+  cell <- cell %>% 
+  rowwise() %>% 
+  mutate(across(
+    c(matches(str_glue(".*Intensity_{ch}$"))), 
+    \(x) max(1, (x - !!as.name(str_glue("Image_bg_{ch}"))))) ) %>% 
+    ungroup()
+  
+  spot <- spot %>% 
+    rowwise() %>% 
+    mutate(across(
+      c(matches(str_glue(".*Intensity_{ch}$"))), 
+      \(x) max(1, (x - !!as.name(str_glue("Image_bg_{ch}"))))) ) %>% 
+    ungroup()
+}
+
+# glimpse(cell)
+# glimpse(spot)
+```
+
+
+## 
+```{r}
+group_var <- "Metadata_well"
+fill_var <- "Metadata_well"
+fact_var <- "Metadata_prefix" # NA mean no additional facet beside channel
+```
+
+## object size
+```{r}
+objects <- c("cell", "spot")
+for(obj in objects()) {
+  eval(parse(text=obj)) %>% 
+  ggplot(aes(!!as.name(str_glue("{obj}_AreaShape_EquivalentDiameter")), 
+             !!as.name(group_var),
+             fill = !!as.name(fill_var))) +
+  geom_density_ridges(color = "grey80", linewidth=0.1,
+                      scale = 1.5, show.legend = F) +
+  labs(x=str_glue("Diameter of {obj} [uM]"), y="") +
+  # coord_cartesian(xlim = c(0, 200), ylim = c(0, 2000)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_{obj}_diameter.pdf"),
+        width=4, 
+        height=length(unique(eval(parse(text=obj))[[group_var]]))/4)
+}
+
+```
+
+## object intensity
+```{r}
+group_var <- "Metadata_well"
+fill_var <- "class"
+fact_var <- "Metadata_prefix" # NA mean no additional facet beside channel
+
+# size
+
+
+cell %>% 
+  pivot_longer(
+    any_of(as.character(str_glue("cell_Intensity_MeanIntensity_{channels}"))),
+    names_to = "channel", 
+    names_prefix = "cell_Intensity_MeanIntensity_",
+    values_to = "Intensity"
+  ) %>% #glimpse()
+  ggplot(aes(Intensity,
+             !!as.name(group_var),
+             fill = !!as.name(fill_var))) +
+  geom_density_ridges(color = "grey80", linewidth=0.1,
+                      scale = 1.5, show.legend = F) +
+  # geom_point(alpha=0.25, size=0.5) +
+  # geom_smooth(show.legend = T) +
+  facet_rep_wrap(~ channel,
+                 nrow = 1,
+                 scales = "free_x",
+                 repeat.tick.labels = T) +
+  labs(x="Intensity", y="") +
+  # coord_cartesian(xlim = c(0, 512)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_cell_intensity.pdf"),
+        width=4*length(channels), 
+        height=length(unique(cell[[group_var]]))/4)
+
+# intensity
+cell %>% 
+  pivot_longer(
+    any_of(as.character(str_glue("cell_Intensity_MeanIntensity_{channels}"))),
+    names_to = "channel", 
+    names_prefix = "cell_Intensity_MeanIntensity_",
+    values_to = "Intensity"
+  ) %>% #glimpse()
+  ggplot(aes(Intensity,
+             !!as.name(group_var),
+             fill = !!as.name(fill_var))) +
+  geom_density_ridges(color = "grey80", linewidth=0.1,
+                      scale = 1.5, show.legend = F) +
+  scale_x_continuous(trans = scales::log2_trans()) +
+  facet_rep_wrap(~ channel,
+                 nrow = 1,
+                 scales = "free_x",
+                 repeat.tick.labels = T) +
+  labs(x="Intensity (log2)",y="") +
+  # coord_cartesian(xlim = c(0, 1000)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_cell_intensity_log2.pdf"),
+        width=4*length(channels), 
+        height=length(unique(cell[[group_var]]))/4)
+
+```
+
+
+## spot intensity
+```{r}
+# set global strip font size
+theme_set(theme(strip.text=element_text(size=4)))
+
+group_var <- "Metadata_well"
+# fill_var <- "Metadata_prefix"
+
+data_plot <- channels %>% 
+  set_names(., nm=.) %>% 
+  map(\(ch) 
+      spot %>% 
+        pivot_longer(
+          c(!!as.name(str_glue("cell_Intensity_MeanIntensity_{ch}")),
+            # !!as.name(str_glue("cell_wo_spot_Intensity_MeanIntensity_{ch}")),
+            # !!as.name(str_glue("spot_rbg_Intensity_MeanIntensity_{ch}")) ),
+            !!as.name(str_glue("spot_Intensity_MeanIntensity_{ch}"))),
+          names_to = "type", values_to = "Intensity") %>% 
+        separate_wider_delim(type, "_Intensity_MeanIntensity_",
+                             names = c("type", "channel"))
+  ) %>% 
+  bind_rows() # pull(channel) %>% unique()
+# glimpse(data_plot)
+
+p <- data_plot %>% 
+  ggplot(aes(spot_AreaShape_EquivalentDiameter, 
+             Intensity,
+             fill=type, color=type)) +
+  geom_point(alpha=0.25, size=0.5, show.legend = F) +
+  geom_smooth(show.legend = T) +
+  facet_rep_grid(rows = vars(!!as.name(group_var)), 
+                 cols = vars(channel), 
+                 scales = "free_x", 
+                 repeat.tick.labels = F) +
+  labs(x="Spot Diameter [uM]", y="Intensity") +
+  coord_cartesian(ylim = c(0, 20000)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_spot_diameter_vs_intensity.pdf"),
+        ggrastr::rasterize(p, dpi=600),
+        width=2*length(channels), 
+        height=length(unique(cell[[group_var]]))*2)
+
+p <- data_plot %>% 
+  ggplot(aes(spot_AreaShape_EquivalentDiameter, 
+             Intensity,
+             fill=type, color=type)) +
+  geom_point(alpha=0.25, size=0.5) +
+  geom_smooth(show.legend = T) +
+  facet_rep_grid(rows = vars(!!as.name(group_var)),
+                 cols = vars(channel),
+                 scales = "free_x",
+                 repeat.tick.labels = F) +
+  scale_y_continuous(trans = scales::log2_trans()) +
+  labs(x="Spot Diameter [uM]", y="Intensity (log2)") +
+  # coord_cartesian(ylim = c(0, 150)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_spot_diameter_vs_intensity_log2.pdf"),
+        ggrastr::rasterize(p, dpi=600),
+        width=2*length(channels), 
+        height=length(unique(cell[[group_var]]))*2)
+
+p <- data_plot %>% 
+  ggplot(aes(spot_AreaShape_EquivalentDiameter, 
+             log2(Intensity),
+             fill=type, color=type)) +
+  geom_point(alpha=0.25, size=0.5) +
+  geom_smooth(show.legend = T) +
+  facet_rep_grid(rows = vars(!!as.name(group_var)),
+                 cols = vars(channel),
+                 scales = "free_x",
+                 repeat.tick.labels = F) +
+  scale_x_continuous(trans = scales::log2_trans()) +
+  scale_y_continuous(trans = scales::log2_trans()) +
+  labs(x="Spot Diameter [uM] (log2)", y="Intensity (log2)") +
+  # coord_cartesian(ylim = c(0, 150)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_spot_diameter_log2_vs_intensity_log2.pdf"),
+        ggrastr::rasterize(p, dpi=600),
+        width=2*length(channels), 
+        height=length(unique(cell[[group_var]]))*2)
+```
+
+## spot ratio
+```{r}
+theme_set(theme(strip.text=element_text(size=4)))
+
+group_var <- "Metadata_well"
+color_var <- "Metadata_well"
+
+
+data_plot <- channels %>% 
+  set_names(., nm=.) %>% 
+  map(\(ch) 
+      spot %>% 
+        mutate(
+          # "spot_ratio_rbg_{ch}" := 
+          #   !!as.name(str_glue("spot_Intensity_MeanIntensity_{ch}")) / 
+          #   !!as.name(str_glue("spot_rbg_Intensity_MeanIntensity_{ch}")),
+          "spot_ratio_cell_{ch}" := 
+            !!as.name(str_glue("spot_Intensity_MeanIntensity_{ch}")) / 
+            !!as.name(str_glue("cell_Intensity_MeanIntensity_{ch}"))
+        ) %>% 
+        pivot_longer(
+          c(
+            # !!as.name(str_glue("spot_ratio_rbg_{ch}")),
+            !!as.name(str_glue("spot_ratio_cell_{ch}")) ),
+          names_to = "type", values_to = "Ratio") %>% 
+        separate_wider_regex(
+          type, 
+          c(type="spot_ratio_.*", "_", channel="ch[0-9]") )
+  ) %>% 
+  bind_rows() # pull(channel) %>% unique()
+# glimpse(data_plot)
+
+p <- data_plot %>% 
+  ggplot(aes(spot_AreaShape_EquivalentDiameter, 
+             Ratio,
+             # color=type
+             color= !!as.name(color_var)
+             )) +
+  geom_point(alpha=0.25, size=0.5) +
+  geom_smooth(show.legend = T) +
+  facet_rep_grid(rows = vars(!!as.name(group_var)),
+                 cols = vars(channel),
+                 scales = "fixed", 
+                 repeat.tick.labels = T) +
+  labs(x="Spot Diameter [uM]", y="Ratio of Spot to Cell") +
+  coord_cartesian(ylim = c(0, 30)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_spot_diameter_vs_ratio.pdf"),
+        ggrastr::rasterize(p, dpi=600),
+        width=2*length(channels), 
+        height=length(unique(cell[[group_var]]))*2)
+
+p <- data_plot %>% 
+  ggplot(aes(spot_AreaShape_EquivalentDiameter, 
+             Ratio,
+             color= !!as.name(color_var)
+             )) +
+  geom_point(alpha=0.25, size=0.5) +
+  geom_smooth(show.legend = T) +
+  facet_rep_grid(rows = vars(!!as.name(group_var)),
+                 cols = vars(channel),
+                 scales = "fixed", 
+                 repeat.tick.labels = T) +
+  labs(x="Spot Diameter [uM] (log2)", y="Ratio of Spot to Cell") +
+  coord_cartesian(ylim = c(0, 30)) +
+  scale_x_continuous(trans = scales::log2_trans()) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_spot_diameter_log2_vs_ratio.pdf"),
+        ggrastr::rasterize(p, dpi=600),
+        width=2*length(channels), 
+        height=length(unique(cell[[group_var]]))*2)
+```
+
+
+## spot radial
+```{r}
+group_var <- "Metadata_well"
+
+
+data_plot <- spot %>% 
+  filter(!if_any(matches(
+    "spot_RadialDistribution_MeanFrac_ch2_[1-5]of5"), ~ .x==0)) %>% 
+  # filter(spot_AreaShape_EquivalentDiameter > 0.6,
+  #        # spot_RadialDistribution_MeanFrac_ch1_5of5 > 0.5
+  # ) %>%
+  slice_sample(n=100, by=!!as.name(group_var)) %>% 
+  pivot_longer(
+    contains("spot_RadialDistribution_MeanFrac"),
+    names_to = c("channel", "radial_order"), 
+    names_sep = "_",
+    names_prefix = "spot_RadialDistribution_MeanFrac_",
+    values_to = "MeanFrac") %>% 
+  mutate(radial_order=radial_order %>% 
+           str_replace_all("of5","") %>% 
+           as.integer())
+  # filter(spot_Number_Object_Number %in% 5)
+# glimpse(data_plot)
+
+p <- data_plot %>% 
+  ggplot(aes(radial_order, MeanFrac)) +
+  # geom_point(alpha=0.25, size=0.5) +
+  geom_path(aes(color=log2(spot_AreaShape_EquivalentDiameter),
+                group=str_c(ImageNumber, spot_Number_Object_Number)),
+            alpha=0.25) +
+  scale_color_viridis_c() +
+  # geom_smooth(show.legend = T) +
+  facet_rep_grid(rows = vars(!!as.name(group_var)),
+                 cols = vars(channel),
+                 scales = "fixed", 
+                 repeat.tick.labels = T) +
+  # scale_x_continuous(trans = scales::log2_trans()) +
+  # labs(x="log2(Intensity)", y="Spark count") +
+  # coord_cartesian(ylim = c(0, 150)) +
+  theme_bw(8) +
+  theme(strip.background = element_rect(fill=NA), 
+        strip.text = element_text(size=6),
+        panel.grid = element_blank(),
+        legend.position = "top")
+ggsave2(str_glue("{Sys.Date()}_spot_radial_vs_meanfrac.pdf"),
+         ggrastr::rasterize(p, dpi=600),
+        width=2*length(channels), 
+        height=length(unique(cell[[group_var]]))*1.5)
+
+
+  
+# for(ch in channels) {
+#   print(ch)
+#   spot %>% 
+#     mutate("spot_ratio_cell_{ch}" := 
+#              !!as.name(str_glue("spot_Intensity_MeanIntensity_{ch}")) /
+#              !!as.name(str_glue("cell_wo_spot_Intensity_MeanIntensity_{ch}")),
+#            "spot_ratio_rbg_{ch}" := 
+#              !!as.name(str_glue("spot_Intensity_MeanIntensity_{ch}")) /
+#              !!as.name(str_glue("spot_rbg_Intensity_MeanIntensity_{ch}"))) %>% 
+#     pivot_longer(
+#       c(!!as.name(str_glue("spot_ratio_cell_{ch}")),
+#         !!as.name(str_glue("spot_ratio_rbg_{ch}"))
+#         ),
+#       names_to = "type", values_to = "Ratio"
+#     ) %>% # glimpse()
+#     ggplot(aes(spot_AreaShape_EquivalentDiameter, Ratio)) +
+#     geom_smooth(aes(fill=type, color=type), show.legend = F) +
+#     facet_rep_wrap(~ Metadata_group + type, 
+#                    scales = "fixed", 
+#                    ncol=2,
+#                    repeat.tick.labels = T) +
+#     # labs(x="log2(Intensity)", y="Spark count") +
+#     # coord_cartesian(ylim = c(0, 150)) +
+#     theme_bw(8) +
+#     theme(strip.background = element_rect(fill=NA), 
+#           strip.text = element_text(size=6),
+#           panel.grid = element_blank(),
+#           legend.position = "top")
+#     ggsave2(str_glue("{Sys.Date()}_spot_diameter_vs_ratio_{ch}_spit.pdf"),
+#           width=4, height=6)
+# }
+
+
+```
+
+## SAVE DATA
+```{r}
+writexl::write_xlsx(
+  list(cell=cell, spot=spot),
+  str_glue("{Sys.Date()}_data_cell_spot.xlsx")
+)
+```
+
+
