@@ -1,0 +1,278 @@
+---
+title: "Multiple-Sheet Plate Reader Output Analysis"
+author: "Hao He"
+format: html
+number-sections: true
+execute-cache: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# setup
+```{r}
+rstudioapi::getActiveDocumentContext()$path |>
+  dirname() |>
+  setwd()
+# setwd("/media/hao/Data/2024-05-01_RTKs_active_mutations")
+
+library(tidyverse)
+library(cowplot)
+library(writexl)
+
+# load function
+c("read_plateReader.R", 
+  "read_plate_info.R") %>% 
+  file.path("/home/hao/Documents/GitHub/myScript/R_functions", .) %>% 
+  walk(source)
+```
+
+# read data
+```{r}
+plateReader_data_dir <- "rawdata"
+
+files <- list.files(plateReader_data_dir, ".xlsx",
+                    recursive=T, full.names=T) %>%
+  str_subset(".*[~].*", negate = T) %>% 
+  str_subset("plate_info.xlsx", negate = T)
+print(files)
+
+raw <- files %>% 
+  map(~ read_plateReader(.x, well_type="96", invert=F)) %>% 
+  set_names(files) %>% 
+  list_rbind(names_to="Metadata_source") %>% 
+  arrange(str_rank(Metadata_source, numeric=T),
+          str_rank(Metadata_sheet, numeric=T))
+
+glimpse(raw)
+# count(raw, Metadata_sheet)
+```
+
+# metadata compound
+```{r}
+# cmpd_lib_name <- c("kinase_inhibitor")
+cmpd_lib_name <- NULL
+
+if(!is.null(cmpd_lib_name)) {
+  cmpd_lib <- 
+    "/media/hao/Data1/compound_screen/cmpd_library/shulab_cmpd_library_merged.csv" %>% 
+    read_csv() %>% #pull(library) %>% unique()
+    filter(library %in% cmpd_lib_name) %>% 
+    select(plate, well, id, name) %>% 
+    rename_with(\(x) str_c("Metadata_",x), everything()) %>% 
+    glimpse()
+  # add plate prefix for imaging data pre-processing
+  print(unique(raw$Metadata_sheet))
+  plate_match <- tibble(
+    Metadata_plate=unique(cmpd_lib$Metadata_plate),
+    Metadata_sheet=c(str_c("",1:13)) )
+  # print(plate_match)
+  cmpd_lib <- right_join(plate_match, cmpd_lib, relationship="many-to-many")
+  
+  # ## add ctrl wells ----------------------------
+  # ctrl_wells <- tibble(
+  #   Metadata_well=c(str_c(LETTERS[2:15], 2)),
+  #   Metadata_id=rep("DMSO", 14),
+  #   Metadata_name=rep("DMSO", 14) ) %>% 
+  #   expand_grid(
+  #     distinct(cmpd_lib[, c("Metadata_plate","Metadata_prefix")]), 
+  #     .)
+  # print(distinct(ctrl_wells, Metadata_well, .keep_all=T))
+  # 
+  # cmpd_lib <- bind_rows(cmpd_lib, ctrl_wells)
+  
+  glimpse(cmpd_lib)
+}
+```
+
+# metadata plate info
+```{r}
+plate_info_f <- "plate_info_20ms.xlsx"
+
+if(file.exists(plate_info_f)) {
+  plate_info <- plate_info_f %>%
+    map_dfr(read_plate_info_2) %>%
+    mutate(Metadata_sheet=str_c("Plate ", Metadata_sheet)) %>% 
+    # dplyr::select(!Metadata_source) %>% 
+    # rename(Metadata_vector=value) %>% 
+    separate_wider_delim(value, delim="_",
+                         names=c("Metadata_cell", "Metadata_cmpd", "Metadata_conc"),
+                         too_few="align_start",
+                         cols_remove=T) %>%
+    mutate(Metadata_cmpd=case_when(
+      Metadata_cmpd == "C1" ~ "Orantinib",
+      Metadata_cmpd == "C2" ~ "Semaxanib",
+      Metadata_cmpd == "C3" ~ "SB590885",
+      Metadata_cmpd == "C4" ~ "Scutellarein",
+      Metadata_cmpd == "C5" ~ "PHA665752",
+      Metadata_cmpd == "C6" ~ "Axitinib",
+      Metadata_cmpd == "C7" ~ "Sorafenib",
+      Metadata_cmpd == "C8" ~ "Dabretinib",
+      Metadata_cmpd == "C9" ~ "Erdafitinib",
+      Metadata_cmpd == "C10" ~ "Futibatinib",
+      Metadata_cmpd == "C11" ~ "Nintedanib",
+      Metadata_cmpd == "C12" ~ "Dasatinib",
+      Metadata_cmpd == "C13" ~ "Regorafenib")) %>% 
+    # separate_wider_delim(value, delim=regex("[+ ]"),
+    #                      names=c("Metadata_vector", "Metadata_type", "Metadata_adaptor"),
+    #                      too_few="align_start",
+    #                      cols_remove=T) %>%
+    # mutate(Metadata_vector=factor(Metadata_vector, c("Gal4DBD","APP","NOTCH1"))) %>%
+    # rename(Metadata_prefix=Metadata_sheet) %>% 
+    mutate(Metadata_conc=as.numeric(Metadata_conc)) %>% 
+    glimpse()
+}
+```
+
+# merge with metadata
+```{r}
+data <- plate_info %>% 
+  # mutate(Metadata_conc=as.numeric(Metadata_conc)) %>% 
+  left_join(raw, .) %>%
+  relocate(starts_with("Metadata"), .before = 1) %>% 
+  dplyr::select(!Metadata_source)
+
+glimpse(data)
+```
+
+# subtract background
+```{r}
+# all value subtract bg value first, usually blank well
+bg_value <- 0
+
+data[["value"]] <- (data[["value"]] - bg_value) %>% 
+  map_int(\(x) max(x, 0))
+
+glimpse(data)
+```
+
+# calculate ratio
+```{r}
+# normalize by group, usually at per plate level
+per_grouping_vars <- c("Metadata_sheet", "Metadata_cell", "Metadata_cmpd")
+ctrl_colname <- "Metadata_conc"
+ctrl_value <- 0
+# ctrl_value <- "median"
+trans_log2 <- F
+
+if(ctrl_value=="median") {
+  # calculate median as ctrl
+  data_ctrl <- data %>% 
+    # filter(!!as.name(ctrl_colname) == ctrl_value) %>% 
+    # rename_with(~ str_c(.x, "_ctrl"), !starts_with("Metadata_")) %>% 
+    reframe(value_ctrl=mean(value, na.rm=T),
+            .by = all_of(per_grouping_vars))
+} else {
+  # calculate mean for ctrl
+  data_ctrl <- data %>% 
+    filter(!!as.name(ctrl_colname) == ctrl_value) %>% 
+    rename_with(~ str_c(.x, "_ctrl"), !starts_with("Metadata_")) %>% 
+    reframe(across(!starts_with("Metadata_"), ~ median(.x, na.rm=T)),
+            .by = all_of(per_grouping_vars))
+  # glimpse(data_ctrl)
+}
+
+# get ratio for each item
+# add constant value to minimize cal error
+const <- 0
+data_ratio <- left_join(data, data_ctrl)
+data_ratio[["value_ratio"]] <- 
+  (data_ratio[["value"]] / (data_ratio[["value_ctrl"]] + const)) %>% 
+  { if(trans_log2) round(log2(.), 4) else round(., 4) }
+# data_ratio[["value_ctrl"]] <- NULL
+
+glimpse(data_ratio)
+
+data_filter <- data_ratio %>% 
+  mutate(Metadata_sheet=factor(Metadata_sheet, unique(str_sort(Metadata_sheet, numeric=T)))) %>%
+  mutate(Metadata_cmpd=factor(Metadata_cmpd, unique(str_sort(Metadata_cmpd, numeric=T)))) %>%
+  filter(!is.na(Metadata_cmpd)) %>% 
+  arrange(Metadata_sheet, Metadata_cmpd)
+write_xlsx(data_filter, str_glue("{Sys.Date()}_data_ratio.xlsx"))
+```
+
+# plot volcano
+```{r}
+if(F) {
+  p <- data_filter %>%   
+  ggplot(aes(Metadata_well, value_ratio)) +
+  geom_col(width=0.5) +
+  facet_grid(rows=vars(Metadata_sheet), axes="all") +
+  labs(x="", y="CTG (median normalization)") +
+  theme_bw() +
+  theme(axis.text.x=element_text(size=3))
+ggsave2(str_glue("{Sys.Date()}_data_ratio.pdf"), p,
+        width=6, height=12)
+}
+```
+
+
+
+## fit setting
+```{r}
+# fitting_source: summary_per_field_normCtrl, summary_per_field
+# glimpse(summary_per_field_normCtrl)
+fitting_obj <- "data_filter"
+fitting_X <- "Metadata_conc"
+fitting_Y <- "value_ratio"
+fitting_groupby <- c("Metadata_cell","Metadata_cmpd")
+# fitting_groupby <- NULL
+```
+
+## fit curve
+```{r}
+source("/home/hao/Documents/GitHub/myScript/R_functions/fit_ic50.R")
+
+fitted <- get(fitting_obj) %>% 
+  # filter(Metadata_cmpd=="Sema") %>% 
+  fit_dose_response(
+    fitting_X, fitting_Y, fitting_groupby, n_worker=32,
+    # parameters from dr4pl::dr4pl()
+    # trend = "decreasing",
+    method.init = "Mead",
+    method.robust = "Huber",
+    lowerl = c(theta_4 = 0))
+
+# prepare data to plot
+# remove not converged group
+fitted_prepared <- plot_dose_response_dataPrepare(
+  fitted, group=fitting_groupby)
+```
+
+## plot fitted result
+```{r}
+# plot
+p <- fitted_prepared %>% 
+  # filter(str_detect(Metadata_cell, "H358")) %>%
+  plot_dose_response(
+    color="Metadata_cell",
+    fact_var1=c("Metadata_cmpd"), #fact_var2="Metadata_vector",
+    facet_scale="free_x", facet_independent="x", facet_axes="all",
+    point_size=0.5, line_width=0.75, errorbar_width = 0.02,
+    strip_size=4, legend_key_size=0.4, 
+    x_expand=c(0.02, 0.05), ylim=c(NA, NA),
+    xlab="Dose [uM]", ylab="Normalized CTG")
+# p
+ggsave2(str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.pdf"),
+        p, width=1.5, height=12, limitsize=F)
+```
+
+## save fitted data
+```{r}
+fitted_save_data <- fitted %>% 
+  unnest(coef) %>%
+  # add more IC values
+  mutate(ICs=map(
+    model, 
+    \(x) dr4pl::IC(x, inhib.percent=c(10, 50, 90)) %>% 
+      enframe() %>% 
+      pivot_wider() )) %>% 
+  unnest(ICs) %>% 
+  select(!c(data, model, pred))
+
+writexl::write_xlsx(
+  list(fitted=fitted_save_data), 
+  str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.xlsx"))
+```
+
+
+

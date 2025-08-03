@@ -1,0 +1,3672 @@
+
+R version 4.4.0 (2024-04-24) -- "Puppy Cup"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f12ced5d4.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f7a708804.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f70fe0bfb.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f73201e2b.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f6f67fc8a.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f4876d8ee.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f5501be1.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f36249a22.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f771272fb.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f4db054ac.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4fd3188d1.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f72b7a38c.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f263ba3ac.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f73162c65.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f1fa4654e.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f19e8218e.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f36bf9603.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f701a05ae.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f73068594.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f4b4de3d7.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f1d9305ed.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f388cc51d.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f67865d84.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f4444de84.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f2fa2796e.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f49a86f0.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4fb34e164.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f7802b239.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f5ba7759f.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f2bf30f7a.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f45b306e6.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f1abbd680.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f380cdc43.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f57927130.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f5695b021.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f6eef7fa1.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4fe60f5fe.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f981fcbd.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f401ca363.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f2f2eb096.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f271502ab.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f78a96880.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f16b50e1a.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f6b59e12f.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f50a46375.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f5de6caaf.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f3823e462.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f19e76e73.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f6a09115c.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f6931d743.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f68977977.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f69f9d1e.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4fc4bbffb.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f6a081fc.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f66707914.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f1bd215e.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f23533bd4.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f47d2ac07.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f1cb0fb6.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4f72e9bc2b.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4fea318da.xml 
+>> create new empty file: /tmp/RtmpE8xmzj/fileb4fd5c2f23.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d58f2bb16.xml 
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d1bbc4965.xml 
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d5fb9464d.xml 
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d5b9948f4.xml 
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d56b3d09c.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  197: <Anonymous>
+  194: filter
+  192: <reactive>
+  190: .func
+  187: contextFunc
+  186: env$runWith
+  179: ctx$run
+  178: self$.updateValue
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  195: <Anonymous>
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d4a0036a6.xml 
+>> create new empty file: /tmp/RtmpCbOLDc/file9e3d33fadbc9.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/Rtmpc96USG/filebaf657b1ee.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf6cc36314.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf2c03213e.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf2c2ca8a0.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf1375f399.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf2e20f7f9.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf2a74986f.xml 
+>> create new empty file: /tmp/Rtmpc96USG/filebaf7ac2887b.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpP9nmFV/file70352b04f091.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703546fabe9e.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70355a080bd4.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70356a4062ba.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703525f19465.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+createTcpServer: address already in use
+Error in initialize(...) : Failed to create server
+Calls: <Anonymous> ... startApp -> startServer -> <Anonymous> -> initialize
+Execution halted
+>> create new empty file: /tmp/RtmpP9nmFV/file70355d039cf3.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703520d1e615.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703577df17a5.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035507d1d27.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70355379ecb.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703517654ca2.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70352c6f70b5.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703535072232.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70359ae25be.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70353324344f.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70357740882a.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70357bf1788e.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70352eeeea7b.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035246f8a71.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035670455a7.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035368a5a75.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70357560db6e.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70352d6a27c7.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70354defa717.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703532822dbf.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035204b7a41.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703521ec2ce4.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70352732c566.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035b8b05b0.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70355989a11a.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703557534db1.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035df8bea5.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70357f5891e0.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file7035142da025.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70356f1e3fb6.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file70351c524995.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703521b7c585.xml 
+>> create new empty file: /tmp/RtmpP9nmFV/file703568e29c16.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+createTcpServer: address already in use
+Error in initialize(...) : Failed to create server
+Calls: <Anonymous> ... startApp -> startServer -> <Anonymous> -> initialize
+Execution halted
+>> create new empty file: /tmp/RtmpRGaTIH/file90a3256ba5a6.xml 
+>> create new empty file: /tmp/RtmpRGaTIH/file90a372f6ddf8.xml 
+>> create new empty file: /tmp/RtmpRGaTIH/file90a33e190023.xml 
+>> create new empty file: /tmp/RtmpRGaTIH/file90a3727dae3.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpGU3kzs/file122cdd221fd7.xml 
+>> create new empty file: /tmp/RtmpGU3kzs/file122cd23d16d11.xml 
+>> create new empty file: /tmp/RtmpGU3kzs/file122cd1af1c66.xml 
+>> create new empty file: /tmp/RtmpGU3kzs/file122cd5713f988.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpElmUWl/file158ea2bd68f87.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea10e1957f.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea644db4c9.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea55dccf45.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea17f45d57.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea62ab5db8.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea6601a23c.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea2dd183c1.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea754967a3.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea671d37de.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea20cdad50.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea479cf920.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea24d4d50b.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea14aa9ad5.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea37e76caf.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea42101beb.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea2c847558.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea594c69cf.xml 
+>> create new empty file: /tmp/RtmpElmUWl/file158ea14293e2.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpgtVjzi/filebe15634fce7.xml 
+>> create new empty file: /tmp/RtmpgtVjzi/filebe155197a95.xml 
+>> create new empty file: /tmp/RtmpgtVjzi/filebe143ac8314.xml 
+>> create new empty file: /tmp/RtmpgtVjzi/filebe158c6930c.xml 
+>> create new empty file: /tmp/RtmpgtVjzi/filebe1102b9b12.xml 
+>> create new empty file: /tmp/RtmpgtVjzi/filebe13573d647.xml 
+>> create new empty file: /tmp/RtmpgtVjzi/filebe110a4be8c.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b12ed05a9.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b694c10bb.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4bdf68997.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpJoqwps/file48e4bbdd899f.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b4bbfb628.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b4e6a00cb.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b5a41412a.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4bb446d2a.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b65468ad.xml 
+>> create new empty file: /tmp/RtmpJoqwps/file48e4b690f6787.xml 
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.1 (2024-06-14) -- "Race for Your Life"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/Rtmped42Pj/file66335415dfd2.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file6633347d5fe5.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66334b17faf.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66337f23f93b.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66335af25345.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66334e94dce5.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file6633a644a5b.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file6633419b345.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file663363e29c40.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file6633360b3250.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmped42Pj/file66335695dc3a.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66336407d928.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file6633f74ac79.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66336bb70a26.xml 
+>> create new empty file: /tmp/Rtmped42Pj/file66333b0036b8.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55738efc08.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55384bffe5.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  197: <Anonymous>
+  194: filter
+  192: <reactive>
+  190: .func
+  187: contextFunc
+  186: env$runWith
+  179: ctx$run
+  178: self$.updateValue
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  195: <Anonymous>
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a552c0b22fa.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5515206cf9.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a552e0568dc.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5538cc2a18.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a552be37be3.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5525cc6eac.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a554643e170.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55754596bd.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5561a56ac2.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a555997dbf8.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55d96f097.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a556e8b712f.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a552005b9af.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a556310e8a9.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5546ae85a8.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a555ed12d7.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55280130eb.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a554bf1449d.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5515197b49.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a554dccdaa8.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55280a3c32.xml 
+Warning: Error in [: subscript out of bounds
+  120: <Anonymous>
+  119: [.data.frame
+  117: <reactive>
+  101: selected_wells
+  100: renderPrint
+   99: func
+   83: renderFunc
+   82: output$display_selected_wells
+    1: shiny::runApp
+Warning: Error in filter: ℹ In argument: `well %in% selected_wells()`.
+Caused by error in `as.matrix(x)[i]`:
+! subscript out of bounds
+  182: <Anonymous>
+  181: signalCondition
+  180: signal_abort
+  179: abort
+  178: <Anonymous>
+  177: stop
+  176: selected_wells
+  175: %in%
+  174: eval
+  173: mask$eval_all_filter
+  171: filter_eval
+  170: filter_rows
+  169: filter.data.frame
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Input to asJSON(keep_vec_names=TRUE) is a named vector. In a future version of jsonlite, this option will not be supported, and named vectors will be translated into arrays instead of objects. If you want JSON object output, please use a named list instead. See ?toJSON.
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a555c024535.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a553ac86404.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a556966b001.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55acc9476.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55712239f8.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5564132b5f.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a556fd145a6.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5547cbc29.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a553a57dbdf.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55409b3efc.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5534ddd0f9.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5561333ba7.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5524af01e5.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a55292a2079.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a557031432d.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5569b83993.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a556ace574f.xml 
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a554fdca2fe.xml 
+Warning: Error in [: subscript out of bounds
+  120: <Anonymous>
+  119: [.data.frame
+  117: <reactive>
+  101: selected_wells
+  100: renderPrint
+   99: func
+   83: renderFunc
+   82: output$display_selected_wells
+    1: shiny::runApp
+Warning: Error in filter: ℹ In argument: `well %in% selected_wells()`.
+Caused by error in `as.matrix(x)[i]`:
+! subscript out of bounds
+  182: <Anonymous>
+  181: signalCondition
+  180: signal_abort
+  179: abort
+  178: <Anonymous>
+  177: stop
+  176: selected_wells
+  175: %in%
+  174: eval
+  173: mask$eval_all_filter
+  171: filter_eval
+  170: filter_rows
+  169: filter.data.frame
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Input to asJSON(keep_vec_names=TRUE) is a named vector. In a future version of jsonlite, this option will not be supported, and named vectors will be translated into arrays instead of objects. If you want JSON object output, please use a named list instead. See ?toJSON.
+>> create new empty file: /tmp/Rtmp2oruJ0/file244a5530025ef1.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpAo0geg/file29a92a841233.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a943525985.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a933394c37.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a92a8ff28d.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97d7a5493.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9121fab88.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a968a50281.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9602d288.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97c0f54ec.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97d33b35a.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a911281f9e.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97f3ae8d1.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a96fb2f957.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a928016a5.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9101a0f0d.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97b19235c.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a960e30fe9.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9727cfac2.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a93568446.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a922789bc0.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9d2f931a.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9642497e.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a93dc282eb.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a913592a0b.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a96304c4f6.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97ba4b824.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a95547f629.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9469c240f.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9451583a6.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91ca2ebe5.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a920dd75fd.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a910353a80.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a92440db85.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a95694dc7b.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a967712177.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a962afd2a0.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a962c9cbde.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a929f7ae0f.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9470079d6.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a931d1fe3f.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a951a9496b.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a96a0f1c2a.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91fa99e58.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a95b673cbb.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94689572a.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9635279ed.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a973184bc3.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a95b8e403.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91c7c2c51.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94387559c.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9e54588f.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91711a92.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91215d3bf.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97313b68e.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9515ad306.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a93bf1b410.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a966ec1259.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a948385689.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9121f60af.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97769f7d3.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91129dc75.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a979c8b2d3.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97ec62838.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a949a7504f.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91eb898cb.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a932fcacb.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a921ca1bb3.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a93b88da7e.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97d878927.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97445a8b7.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91aaae118.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94329e14.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9140a24c9.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9c7152eb.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94b9f25a7.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94cbceead.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a95de5084f.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a918707497.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9250321d9.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97f91efb6.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  214: <Anonymous>
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpAo0geg/file29a962ee40d7.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a968dac1d3.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a97e68d18d.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a947faf3d2.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a9542dfa5b.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a923409622.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a95edc8a92.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91120d0c9.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a972ae18f6.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a93167310c.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94f8b95bc.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a933534a17.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a968aeb772.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a91b9fe97a.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a959b43a58.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a93fb53f69.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a970cfb938.xml 
+>> create new empty file: /tmp/RtmpAo0geg/file29a94ed7953f.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/Rtmp9T75H3/file6052733f4a59.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpWGOsBB/filefbea1f0acf72.xml 
+>> create new empty file: /tmp/RtmpWGOsBB/filefbea3069ed8b.xml 
+>> create new empty file: /tmp/RtmpWGOsBB/filefbea25d864a0.xml 
+>> create new empty file: /tmp/RtmpWGOsBB/filefbea6a36630d.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpWmZ2hh/filed566d6d9910.xml 
+>> create new empty file: /tmp/RtmpWmZ2hh/filed5645d3c74a.xml 
+>> create new empty file: /tmp/RtmpWmZ2hh/filed5610a690ca.xml 
+>> create new empty file: /tmp/RtmpWmZ2hh/filed565c0fd691.xml 
+>> create new empty file: /tmp/RtmpWmZ2hh/filed56416d3c16.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf6d3b574e.xml 
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf26166db.xml 
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf67169bb6.xml 
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf2539cd0.xml 
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf3ac633d3.xml 
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf3bb47603.xml 
+>> create new empty file: /tmp/RtmpGph58C/file9d2cf7842d6c3.xml 
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+Warning: Error in [: subscript out of bounds
+  120: <Anonymous>
+  119: [.data.frame
+  117: <reactive>
+  101: selected_wells
+  100: renderPrint
+   99: func
+   83: renderFunc
+   82: output$display_selected_wells
+    1: shiny::runApp
+Warning: Error in filter: ℹ In argument: `well %in% selected_wells()`.
+Caused by error in `as.matrix(x)[i]`:
+! subscript out of bounds
+  182: <Anonymous>
+  181: signalCondition
+  180: signal_abort
+  179: abort
+  178: <Anonymous>
+  177: stop
+  176: selected_wells
+  175: %in%
+  174: eval
+  173: mask$eval_all_filter
+  171: filter_eval
+  170: filter_rows
+  169: filter.data.frame
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Input to asJSON(keep_vec_names=TRUE) is a named vector. In a future version of jsonlite, this option will not be supported, and named vectors will be translated into arrays instead of objects. If you want JSON object output, please use a named list instead. See ?toJSON.
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b40340aba3f7.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b403287ed7e9.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4033b58a897.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4036b1e6a20.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b403964dc84.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4032a0ec409.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4034b11e4c8.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b403ce72771.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b40328c07926.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b40357f90c3a.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b40335ca3d60.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b40379b3b6a8.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4031f8e4ca3.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4035a2f2f42.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4033dd5b215.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4034a55da21.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4033ff96f3a.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b40359965d1a.xml 
+>> create new empty file: /tmp/RtmpX8GwVZ/file26b4037d016b61.xml 
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpoxPmWc/fileefd870db829c.xml 
+>> create new empty file: /tmp/RtmpoxPmWc/fileefd818150d1e.xml 
+>> create new empty file: /tmp/RtmpoxPmWc/fileefd8252accc1.xml 
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpjIvozJ/file29be6097d14.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be14b78fec.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be1c38bae7.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be59b7a295.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29bec041a26.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be2743cd76.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be1a8bc57d.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be45c2b5a2.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29bed36dd2.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be730c5eb1.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be6eb13e9d.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be6bc2b50.xml 
+>> create new empty file: /tmp/RtmpjIvozJ/file29be1cf99994.xml 
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+
+Execution halted
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpkQ8DpG/file381554c59f123.xml 
+
+
+Execution halted
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a36ddb751.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a5e6da272.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a46609191.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a4bbe136e.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a1ab29ee1.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a7f7a593a.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a4897f7a2.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a6960361c.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a1ab884a3.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a13a6bdb4.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a3993b197.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a49239648.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a5548d38e.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a6a915e8a.xml 
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a572f57fc.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  233: distinct
+  232: mutate
+  231: %>%
+  230: optim_fields
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  109: <Anonymous>
+  108: stop
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpjQ0WFb/file3939a15c47283.xml 
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://127.0.0.1:7738
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e444b6c07.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1a1d6b9.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1c636133.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e67b68a4c.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77ea3008b6.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e74dc0eb6.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e751d8995.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e2b9bc903.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e3458bf52.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e3abb84c5.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e37b070e8.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e547f33a3.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e50b28ca3.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e227b025a.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1e10bb8.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e11d745f2.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e73250790.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e4e1daa1.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e760bcea3.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e74c6de49.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e37a3e986.xml 
+Warning: Error in seq_len: argument must be coercible to non-negative integer
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e32c12dc5.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e6a9f99e4.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e6a31f2f7.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e515588d.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e18265502.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e4d5e70fa.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e6ed7059.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e35917939.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e271aea28.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e12f590db.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e47d8ac27.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e75f4eceb.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e4a997a61.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77ee789e68.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e7f8a7473.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e39edd4cf.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e2997c44c.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e59d2889f.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e687a0225.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1add55b9.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e206544ee.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e6c267859.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e58b3640a.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e364b222d.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1961978c.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e7a54e438.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1729c801.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1c4d2c48.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  233: distinct
+  232: mutate
+  231: %>%
+  230: optim_fields
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  109: <Anonymous>
+  108: stop
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e36ad75db.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e4677ee78.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e39a6870e.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e22963f04.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e8595fa6.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1153cc49.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e414c7546.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e5aa9f690.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e12cfaa6c.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e3478871c.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e18bcf4d2.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77ea3358e8.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e79b24ea.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e5a046ff.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e65a52dad.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  233: distinct
+  232: mutate
+  231: %>%
+  230: optim_fields
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  109: <Anonymous>
+  108: stop
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e5440deba.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e40143402.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e284fb182.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e30f2b736.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e61f75152.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e146ceab0.xml 
+>> create new empty file: /tmp/Rtmpr1ABpa/file3ff77e1ef01e4e.xml 
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpWNUihl/file364e753995f6a.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e722ab6b9d.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e71636db4.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  233: distinct
+  232: mutate
+  231: %>%
+  230: optim_fields
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  109: <Anonymous>
+  108: stop
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpWNUihl/file364e74bf93b2e.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7473cc8a4.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e79208742.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e765f1c1c0.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  128: distinct
+  127: mutate
+  126: %>%
+  125: optim_fields
+  123: <reactive>
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  197: <Anonymous>
+  194: filter
+  192: <reactive>
+  190: .func
+  187: contextFunc
+  186: env$runWith
+  179: ctx$run
+  178: self$.updateValue
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  195: <Anonymous>
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpWNUihl/file364e71627cf26.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e733e7e98c.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e76ba80c3b.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e75004f8f.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e77b10d6d0.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e77018f0dc.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e78593564.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e71b744d11.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e767b7d25d.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7199b80fc.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7f1b40e3.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e75bb72ba6.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7769e79f5.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e76909b99.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7484f6e87.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e734473296.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7442c6e0e.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e75a2fbccb.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e7455bf5a2.xml 
+>> create new empty file: /tmp/RtmpWNUihl/file364e71e688a21.xml 
+
+R version 4.4.3 (2025-02-28) -- "Trophy Case"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.1     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec22f149b8e.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec21c7fe035.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec23dd36a3a.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec258e3faf0.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec237013aac.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec238d8b1c6.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2124278fc.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec215e788a7.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec21a6391b1.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec27f4fc493.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec254624645.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec243de1253.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec23f2ea8da.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec272b30a9b.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec24f27b83e.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2586e75d2.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2166ec86b.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec22f300d93.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2498a3598.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2427a1ae5.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  233: distinct
+  232: mutate
+  231: %>%
+  230: optim_fields
+  211: filter
+  168: filter
+  149: is.data.frame
+  148: check_data_frame
+  147: separate_wider_position
+  146: mutate
+  145: arrange
+  125: mutate
+  123: <reactive>
+  107: final
+  104: exprFunc
+  103: widgetFunc
+  102: ::
+htmlwidgets
+shinyRenderWidget
+  101: func
+   88: renderFunc
+   87: renderFunc
+   83: renderFunc
+   82: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  178: <Anonymous>
+  177: stop
+  176: ref_well_fields_subset
+  168: renderPlot
+  166: func
+  126: drawPlot
+  112: <reactive:plotObj>
+   96: drawReactive
+   83: renderFunc
+   82: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  109: <Anonymous>
+  108: stop
+  107: ref_well_fields
+   97: renderUI
+   96: func
+   83: renderFunc
+   82: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec214ce8d1b.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec25664f732.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec22c101fcd.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec21c52bcc.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec243443e52.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec23c88874b.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec21c9ee822.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2657cfc03.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec239d75b6f.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec23d7a4425.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec241dcb8ac.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2396b0af9.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec299b2e62.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec216e296b0.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec24914c74c.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2cae9245.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec256c1cb84.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec25a0081cf.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2472b855.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec26149861a.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec267efc78b.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec23fa91151.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec244b0246b.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec24dadc01e.xml 
+>> create new empty file: /tmp/RtmpSzMPAn/filee0ec2cd63330.xml 
+
+R version 4.5.0 (2025-04-11) -- "How About a Twenty-Six"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+Warning: namespace ‘bslib’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘shiny’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘memoise’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘cachem’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘fastmap’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Error in loadNamespace(x) : there is no package called ‘shiny’
+Calls: loadNamespace -> withRestarts -> withOneRestart -> doWithOneRestart
+Execution halted
+
+R version 4.5.0 (2025-04-11) -- "How About a Twenty-Six"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+Warning: namespace ‘bslib’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘shiny’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘memoise’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘cachem’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+Warning: namespace ‘fastmap’ is not available and has been replaced
+by .GlobalEnv when processing object ‘ui’
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Error in loadNamespace(x) : there is no package called ‘shiny’
+Calls: loadNamespace -> withRestarts -> withOneRestart -> doWithOneRestart
+Execution halted
+
+R version 4.5.0 (2025-04-11) -- "How About a Twenty-Six"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.0.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0455a70afd.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042e850922.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab045c6a8275.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab044a417443.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0428c3c7ff.xml 
+Warning: Error in [: subscript out of bounds
+  128: <Anonymous>
+  127: [.data.frame
+  125: <reactive>
+  105: selected_wells
+  104: renderPrint
+  103: func
+   87: renderFunc
+   86: output$display_selected_wells
+    1: shiny::runApp
+Warning: Error in filter: ℹ In argument: `well %in% selected_wells()`.
+Caused by error in `as.matrix(x)[i]`:
+! subscript out of bounds
+  198: <Anonymous>
+  197: signalCondition
+  196: signal_abort
+  195: abort
+  194: <Anonymous>
+  193: stop
+  192: selected_wells
+  191: %in%
+  190: eval
+  189: mask$eval_all_filter
+  187: filter_eval
+  186: filter_rows
+  185: filter.data.frame
+  184: filter
+  161: is.data.frame
+  160: check_data_frame
+  159: separate_wider_position
+  158: mutate
+  157: arrange
+  133: mutate
+  131: <reactive>
+  111: final
+  108: exprFunc
+  107: widgetFunc
+  106: ::
+htmlwidgets
+shinyRenderWidget
+  105: func
+   92: renderFunc
+   91: renderFunc
+   87: renderFunc
+   86: output$preview
+    1: shiny::runApp
+Input to asJSON(keep_vec_names=TRUE) is a named vector. In a future version of jsonlite, this option will not be supported, and named vectors will be translated into arrays instead of objects. If you want JSON object output, please use a named list instead. See ?toJSON.
+Warning: Error in if: missing value where TRUE/FALSE needed
+  261: distinct
+  260: mutate
+  259: %>%
+  258: optim_fields
+  235: filter
+  184: filter
+  161: is.data.frame
+  160: check_data_frame
+  159: separate_wider_position
+  158: mutate
+  157: arrange
+  133: mutate
+  131: <reactive>
+  111: final
+  108: exprFunc
+  107: widgetFunc
+  106: ::
+htmlwidgets
+shinyRenderWidget
+  105: func
+   92: renderFunc
+   91: renderFunc
+   87: renderFunc
+   86: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  261: distinct
+  260: mutate
+  259: %>%
+  258: optim_fields
+  235: filter
+  184: filter
+  161: is.data.frame
+  160: check_data_frame
+  159: separate_wider_position
+  158: mutate
+  157: arrange
+  133: mutate
+  131: <reactive>
+  111: final
+  108: exprFunc
+  107: widgetFunc
+  106: ::
+htmlwidgets
+shinyRenderWidget
+  105: func
+   92: renderFunc
+   91: renderFunc
+   87: renderFunc
+   86: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  113: <Anonymous>
+  112: stop
+  111: ref_well_fields
+  101: renderUI
+  100: func
+   87: renderFunc
+   86: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0461427b88.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043ef25d14.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04668c8425.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0470aa5b83.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab044efd35b6.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042819e032.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0478fba2a0.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04424df162.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab046920339b.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04395a45bc.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043e1f0b3b.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  261: distinct
+  260: mutate
+  259: %>%
+  258: optim_fields
+  235: filter
+  184: filter
+  161: is.data.frame
+  160: check_data_frame
+  159: separate_wider_position
+  158: mutate
+  157: arrange
+  133: mutate
+  131: <reactive>
+  111: final
+  108: exprFunc
+  107: widgetFunc
+  106: ::
+htmlwidgets
+shinyRenderWidget
+  105: func
+   92: renderFunc
+   91: renderFunc
+   87: renderFunc
+   86: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  261: distinct
+  260: mutate
+  259: %>%
+  258: optim_fields
+  235: filter
+  184: filter
+  161: is.data.frame
+  160: check_data_frame
+  159: separate_wider_position
+  158: mutate
+  157: arrange
+  133: mutate
+  131: <reactive>
+  111: final
+  108: exprFunc
+  107: widgetFunc
+  106: ::
+htmlwidgets
+shinyRenderWidget
+  105: func
+   92: renderFunc
+   91: renderFunc
+   87: renderFunc
+   86: output$preview
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  113: <Anonymous>
+  112: stop
+  111: ref_well_fields
+  101: renderUI
+  100: func
+   87: renderFunc
+   86: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0435488331.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab046847cced.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042bb9dfbb.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0481bafe0.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047e15f2f1.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047d5b2220.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04dd0f327.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0419fe5f2.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0449dbec9e.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047d009221.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04bf7b6ff.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047071b707.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04641cc67a.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04ced8520.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043a02032e.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  136: distinct
+  135: mutate
+  134: %>%
+  133: optim_fields
+  131: <reactive>
+  111: ref_well_fields
+  101: renderUI
+  100: func
+   87: renderFunc
+   86: output$subset_field_ui
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  209: <Anonymous>
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  215: <Anonymous>
+  184: filter
+  161: is.data.frame
+  160: check_data_frame
+  159: separate_wider_position
+  158: mutate
+  157: arrange
+  133: mutate
+  131: <reactive>
+  111: final
+  108: exprFunc
+  107: widgetFunc
+  106: ::
+htmlwidgets
+shinyRenderWidget
+  105: func
+   92: renderFunc
+   91: renderFunc
+   87: renderFunc
+   86: output$preview
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047b381ba5.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0447ef684e.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0460e6055e.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab041d75ecab.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0424ed77cf.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043f5add52.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab045bd32b0a.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043c9feba2.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04309785c7.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0452f24c69.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab046c13bb7e.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0467a72edc.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  232: distinct
+  231: mutate
+  230: %>%
+  229: optim_fields
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  232: distinct
+  231: mutate
+  230: %>%
+  229: optim_fields
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  113: <Anonymous>
+  112: stop
+  111: ref_well_fields
+  101: renderUI
+  100: func
+   87: renderFunc
+   86: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab045aa9fab3.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04186c0d8a.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047379391.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0462cefd4b.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04a3096d2.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0447f49478.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0479217984.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab041dcd3ed7.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042a3d53a3.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0453f7ab03.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04591212e3.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043ad4640c.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047f423c1e.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab043965aca1.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab041995e67b.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0426cef890.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0419cded.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04303a295c.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04339d6bde.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0470b7534f.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04680e59b2.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab044cffb11f.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0433d1b5a0.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04402eece7.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047973f3e4.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04451f4ffd.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0412a0f9a4.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04e5dedc4.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04723b6ea6.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab046dba5568.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab0447efb8c.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042238bba.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab04ae3ee65.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042a73ecb1.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042243f257.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047f0f8c2c.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab041ce5dadd.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab046a7c72b9.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  232: distinct
+  231: mutate
+  230: %>%
+  229: optim_fields
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  232: distinct
+  231: mutate
+  230: %>%
+  229: optim_fields
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  113: <Anonymous>
+  112: stop
+  111: ref_well_fields
+  101: renderUI
+  100: func
+   87: renderFunc
+   86: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047e8bf64c.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047076925e.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab044eb3562d.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab042b6a664.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047c1f9266.xml 
+>> create new empty file: /tmp/RtmpLYDtd1/file3ab047d00810a.xml 
+
+R version 4.5.1 (2025-06-13) -- "Great Square Root"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.2     ✔ tibble    3.3.0
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.0.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418368aa5ca.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4181918a739.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4185417c87f.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4184d96d837.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418cb863c.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41816d6bac7.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41812031d60.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4186d1ae90.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418b50224b.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41820c745e7.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4183ec77809.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4183829cb0e.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41872e3c8ad.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41832004b63.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41815e8d3cf.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4183498755f.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41873a63c44.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41853208712.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4184f0dff2b.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41812b046aa.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41849d90aa8.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418200bbc8f.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4186519bdf5.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4186a95583f.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4186b3565ba.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41860b6291e.xml 
+Warning: Error in if: missing value where TRUE/FALSE needed
+  232: distinct
+  231: mutate
+  230: %>%
+  229: optim_fields
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  232: distinct
+  231: mutate
+  230: %>%
+  229: optim_fields
+  206: filter
+  204: <reactive>
+  202: .func
+  199: contextFunc
+  198: env$runWith
+  187: ctx$run
+  186: self$.updateValue
+  184: ref_well_fields_subset
+  176: renderPlot
+  174: func
+  134: drawPlot
+  120: <reactive:plotObj>
+  100: drawReactive
+   87: renderFunc
+   86: output$plot_fields
+    1: shiny::runApp
+Warning: Error in if: missing value where TRUE/FALSE needed
+  113: <Anonymous>
+  112: stop
+  111: ref_well_fields
+  101: renderUI
+  100: func
+   87: renderFunc
+   86: output$subset_field_ui
+    1: shiny::runApp
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4187f0f4459.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4187833dfe2.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41840fd8973.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4181778ba84.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4184957a750.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4184d8893f6.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf4187b06e1.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418397eb8ca.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418d33ea29.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf41811aa4d0a.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418425598c2.xml 
+>> create new empty file: /tmp/Rtmp1zp9SC/filebf418422360ed.xml 
