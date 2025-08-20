@@ -26,7 +26,7 @@ c("read_sqlite.R",
   "cp_analysis_func.R", 
   "ggplot_helper.R",
   "fit_ic50.R") %>% 
-  file.path("/home/hao/Documents/GitHub/myScript/R_functions", .) %>% 
+  file.path("/home/hao/Documents/GitHub/myScript/R_helper", .) %>% 
   walk(source)
 ```
 
@@ -237,7 +237,7 @@ if(exists("position_meta")) {
 
 ## remove unwanted metadata columns
 image <- image %>% 
-  select(!c(Metadata_directory, Metadata_stack)) %>% 
+  select(!any_of(c("Metadata_directory", "Metadata_stack"))) %>% 
   { if(length(unique(image[["Metadata_timepoint"]]))==1 ) {
     select(., !Metadata_timepoint) } else .} %>% 
   select(starts_with("Metadata"), everything()) %>% 
@@ -444,7 +444,7 @@ if(T) {
       expand_grid(tibble(
         Metadata_prefix=unique(image$Metadata_prefix)), .)
   }
-  print(head(bg_intensity))
+  print(bg_intensity)
   
   # or by manual defined
   if(F) {

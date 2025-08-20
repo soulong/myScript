@@ -11,7 +11,7 @@ from image_helper import (
 
 #%% data_dir
 data_dir = """
-/media/hao/Data/Project_MYC/2025-08-01_MYC_LNCaP_P63_P64
+/media/hao/Data/Project_ZM_translocation_reporter/20240924 ZM translocation Casp3+TEV reporter
 """
 data_dir = data_dir.strip()
 
@@ -48,7 +48,7 @@ if False:
     from tifffile import imread, imwrite
     import numpy as np
     
-    f = glob(measurement_dir + "/**/*.tif")
+    f = glob(data_dir + "/**/*.tif")
     prefix = list(set([sub("\(Alexa.*", "", x) for x in f]))
     channel = list(set([sub(".*\(Alexa", "", x) for x in f]))
     print(channel)
@@ -76,13 +76,11 @@ if False:
 
 #%% cell segmentation
 dataset = images_to_dataset(data_dir, subset_pattern=None, remove_na_row=True,
-    image_suffix=".tif", position_metadata='position.csv', pos_index_col="Index",
-    cellprofiler_style=True,
-    image_extractor='(?P<prefix>.*)_C(?P<channel>[0-9]{1,})_T(?P<position>[0-9]{1,})(?P<self_generated>.*)',
-    mask_extractor='(?P<prefix>.*)_C(?P<channel>[0-9]{1,})_T(?P<position>[0-9]{1,})_(?P<mask_name>.*)'
-    # image_extractor='(?P<prefix>.*)_Z(?P<stack>.{1,})_C(?P<channel>[0-9]{1,})_T(?P<position>[0-9]{1,})(?P<self_generated>.*)',
-    # mask_extractor='(?P<prefix>.*)_Z(?P<stack>.{1,})_C(?P<channel>[0-9]{1,})_T(?P<position>[0-9]{1,})_(?P<mask_name>.*)'
-    )
+    image_subdir='.', image_suffix=".tif", cellprofiler_style=True,
+    image_extractor='(?P<prefix>.*)(?P<self_generated>.*)',
+    mask_extractor='(?P<prefix>.*)_cp_masks_(?P<mask_name>.*)')
+
+# dataset = images_to_dataset(data_dir, subset_pattern=None, remove_na_row=True)
 # dataset["df"].to_csv(os.path.join(data_dir, "cp_dataloader.csv"), index=False)
 
 # for cell
@@ -91,7 +89,7 @@ cellpose_segment_dataset(
     channel_names = [['ch1'], ], 
     channel_weights = [[1,], ],
     channel_merge = "mean", # mean or sum
-    model_name = "cpsam", # cyto3, cyto3_M7, cyto3_spot
+    model_name = "cpsam", # cyto3, cyto3_M7, cyto3_spot, cpsam_EM_mito
     diameter = None, 
     normalize = {'percentile': [0.1, 99.9]},
     resize_factor = 1, 
@@ -102,16 +100,16 @@ cellpose_segment_dataset(
 # for nuclei
 cellpose_segment_dataset(
     dataset, 
-    channel_names = [['ch3',], ], 
+    channel_names = [['ch0',], ], 
     channel_weights = [[1,], ],
     channel_merge = "mean", # mean or sum
-    model_name = "cpsam", # cyto3, cyto3_M7, cyto3_spot
+    model_name = "cpsam_EM_mito", # cyto3, cyto3_M7, cyto3_spot, cpsam_EM_mito
     diameter = None, 
     normalize = {'percentile': [0.1, 99.9]},
-    resize_factor = 1, 
-    mask_name = 'nuclei',
+    resize_factor = 0.5, 
+    mask_name = 'mito',
     reduce_mask_name = True, overwrite_mask = False,
-    device = 'gpu', gpu_batch_size = 8)
+    device = 'gpu', gpu_batch_size = 16)
 
 #%% ilastik segmentation (probability)
 ilastik_multiple(
@@ -146,7 +144,7 @@ res_cp["df"].to_csv(os.path.join(data_dir, "cp_dataloader.csv"), index=False)
 """
 ## run via terminal
 # conda activate cellprofiler
-f'(echo "sleep for N seconds"; sleep 2) && python /home/hao/Documents/GitHub/myScript/nikon_imageset_python_processing/step5_run_cellprofiler.py \
+f'(echo "sleep for N seconds"; sleep 2) && python /home/hao/Documents/GitHub/myScript/python/image_analysis/step5_run_cellprofiler.py \
     --measurements "{data_dir}" \
     --cp_project_path "{data_dir}/by_cellRegion.cpproj" \
     --thread_num 32'

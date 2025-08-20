@@ -39,6 +39,7 @@ from skimage.segmentation import clear_border
 # from scipy.ndimage import rotate
 import scipy.ndimage as ndi
 import sqlite3
+import gc
 
 
 
@@ -277,7 +278,7 @@ def images_to_dataset(
         position_metadata: str = "position.csv",  # None for no usage
         pos_index_col: str = "P Index", # which col in position_metadata to use to merge with df
         image_extractor: str = '(?P<prefix>.*)__t(?P<timepoint>[0-9]{1,})_p(?P<position>[0-9]{1,})_z(?P<stack>[0-9]{1,})_ch?(?P<channel>[0-9]{1,})(?P<self_generated>.*)',
-        mask_extractor: str = '(?P<prefix>.*)__t(?P<timepoint>[0-9]{1,})_p(?P<position>[0-9]{1,})_z(?P<stack>[0-9]{1,})_ch?(?P<channel>[0-9]{1,})_(?P<mask_name>.*)'
+        mask_extractor: str = '(?P<prefix>.*)__t(?P<timepoint>[0-9]{1,})_p(?P<position>[0-9]{1,})_z(?P<stack>[0-9]{1,})_ch?(?P<channel>[0-9]{1,})_(cp_masks_)?(?P<mask_name>.*)'
 ) -> dict:
     """
     Convert images to dataset
@@ -330,8 +331,14 @@ def images_to_dataset(
     # images_df = images_df.iloc[:10]
     # get metadata
     image_meta = image_df["filename"].str.extract(image_extractor + f'{image_suffix}')
-    image_meta["channel"] = image_meta["channel"].astype("str") + image_meta["self_generated"]
+    if "channel" in image_meta.columns:
+        image_meta["channel"] = image_meta["channel"].astype("str") + image_meta["self_generated"]
+    else:
+        image_meta["channel"] = '0'
+    
     image_meta.pop('self_generated')
+    # print(image_meta)
+    
     # merge with directory, filename
     image_df = pd.concat([image_df, image_meta], axis=1)
 
@@ -363,7 +370,11 @@ def images_to_dataset(
             # masks_df = masks_df.iloc[:10]
             # get metadata
             mask_meta = mask_df["filename"].str.extract(mask_extractor + f'{mask_suffix}')
-
+            
+            if "channel" not in mask_meta.columns:
+                mask_meta["channel"] = '0'
+            # print(mask_meta)
+            
             # merge
             mask_df = pd.concat([mask_df, mask_meta], axis=1)
             # set index
@@ -377,7 +388,10 @@ def images_to_dataset(
             print(f"{len(mask_df)} grouped object masks: {list(mask_df)}")
 
             # merge image and mask
+            # print(image_df)
+            # print(mask_df)
             df = pd.merge(image_df, mask_df, how='left', left_index=True, right_index=True)
+            # print(df)
 
     # keep NA rows
     if remove_na_row:
@@ -595,6 +609,8 @@ def cellpose_segment_dataset(
     print(f'segmentation diameter: {diameter}')
     print(f'segmentation mask_name: {mask_name}')
     
+    clean_up_memory()
+    
     for idx in tqdm(range(len(df))):
         fname = join(df['directory'].iloc[idx], df.iloc[idx][channel_names[0][0]])
         save_stem = join(dirname(fname), f'{splitext(basename(fname))[0]}') + '_cp_masks'
@@ -631,11 +647,21 @@ def cellpose_segment_dataset(
                 cp_io.save_masks(
                     img, closing(mask), flow, file_names=save_stem, suffix=f'_{mask_name}')
 
-        except Exception as e:  print(e)
+        except Exception as e: 
+            print(e)
+            clean_up_memory()
+
 
     return None
 
 
+def clean_up_memory():
+    if torch.cuda.is_available():
+        print('clean up GPU memory')
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    gc.collect()
+    return None
 
 
 def ilastik_sinlge(images,
@@ -1657,7 +1683,7 @@ def radial_distribution(mask, image, num_bins=5, display=False):
             
             if display:
                 display_img[bin_mask] = mean_values[i]
-                
+       
     if display:
         plt.figure(figsize=(10, 5))
         plt.subplot(121)

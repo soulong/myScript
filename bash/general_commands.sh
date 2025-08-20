@@ -36,7 +36,7 @@ sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
     
 #################### run shinny APP #####################
 # run shinyAPP from terminal
-cd ~/Documents/GitHub/myScript/generate_well_positions_for_nikon_microscopy
+cd ~/Documents/GitHub/myScript/R_scripts/shiny_generate_well_positions
 nohup R -e "shiny::runApp('shinyApp.R')" &
 
 

@@ -3670,3 +3670,136 @@ Warning: Error in if: missing value where TRUE/FALSE needed
 >> create new empty file: /tmp/Rtmp1zp9SC/filebf41811aa4d0a.xml 
 >> create new empty file: /tmp/Rtmp1zp9SC/filebf418425598c2.xml 
 >> create new empty file: /tmp/Rtmp1zp9SC/filebf418422360ed.xml 
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+Warning: Error in setwd: cannot change working directory
+  1: shiny::runApp
+
+R version 4.5.1 (2025-06-13) -- "Great Square Root"
+Copyright (C) 2025 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> shiny::runApp('shinyApp.R')
+Loading required package: shiny
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.2     ✔ tibble    3.3.0
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.0.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+
+Attaching package: ‘DT’
+
+The following objects are masked from ‘package:shiny’:
+
+    dataTableOutput, renderDataTable
+
+
+Listening on http://0.0.0.0:5556
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da452a3a62c.xml 
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da43fe5fa78.xml 
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da4154f6b68.xml 
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da47126309d.xml 
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da46a3600ad.xml 
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da415e4bc2d.xml 
+>> create new empty file: /tmp/RtmpQydXnP/file1e5da4667c1146.xml 
