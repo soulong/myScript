@@ -52,7 +52,7 @@ conda env create -f ngs.yml -p ~/miniconda3/envs/ngs
 # conda export all envs
 for env in $(conda env list | cut -d" " -f1); do 
    if [[ ${env:0:1} == "#" ]] ; then continue; fi;
-   conda env export -n $env > ./conda_envs_yml/${env}.yml
+   conda env export -n $env > ./${env}.yml
 done
 
 # conda remove all installed package in base env
