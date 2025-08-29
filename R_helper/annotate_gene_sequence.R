@@ -99,6 +99,11 @@ df <- left_join(mart_anno_id, mart_anno_cds) %>%
 
 write_csv(df, str_glue('{Sys.Date()}_cloning.csv'))
 
+# df <- read_csv('2025-08-18_cloning.csv')
+ggplot(df, aes(x=cds_length)) +
+  geom_histogram(binwidth = 100) +
+  theme_bw() +
+  labs(x='cDNA length', y='Count')
 
 
 

@@ -29,7 +29,6 @@ python '/home/hao/Documents/GitHub/myScript/python_functions/constrain_residues.
 	$diffusion_output_dir
 
 
-
 ## step 2
 ## protein-mpnn sequence
 conda activate proteinmpnn_binder_design

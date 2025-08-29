@@ -20,13 +20,11 @@ from Bio.Restriction import RestrictionBatch as Batch
 import autosnapgene as snap
 # from google_crc32c import exc
 from tqdm import tqdm
-from typing import List, AnyStr
+from typing import List, AnyStr, Optional
 import pandas as pd
 
 
-
-
-def read_dna_file(f: AnyStr = None, multiple: bool = False) -> Seq | List[Seq]:
+def read_dna_file(f: Optional[AnyStr] = None, multiple: bool = False) -> Seq | List[Seq]:
     '''
     read .fa or .dna file, 
     usually a Bio.Seq.Seq object return, if .fa contain multuple records and multiple=True, will return a list of Seq object
@@ -123,13 +121,13 @@ def split_DNA_by_enzyme(dna: Seq | AnyStr, enzyme: List[AnyStr]) -> List[Seq]:
 
 
 def make_plasmid(vector_file: AnyStr, # Path to the vector file, should be a .dna file
-                insert_dir: AnyStr = None, # Directory path containing insert files with .fa or .dna extensions
-                insert_name_regex: AnyStr = None, # Regex pattern to extract insert names from filenames, used when insert_dir is provided
-                insert_sequences: List[AnyStr] = None, # List of DNA sequences to be used as inserts
-                insert_names: List[AnyStr] = None, # List of names corresponding to insert_sequences, used when insert_sequences is provided
+                insert_dir: Optional[AnyStr] = None, # Directory path containing insert files with .fa or .dna extensions
+                insert_name_regex: Optional[AnyStr] = None, # Regex pattern to extract insert names from filenames, used when insert_dir is provided
+                insert_sequences: Optional[List[AnyStr]] = None, # List of DNA sequences to be used as inserts
+                insert_names: Optional[List[AnyStr]] = None, # List of names corresponding to insert_sequences, used when insert_sequences is provided
                 insert_is_clean: bool = True, # Boolean to indicate if inserts need cleavage (removing sides by HR_sequence or enzyme)
-                HR_sequence: List[AnyStr] = None, # List of homology region sequences for splitting vector/insert, e.g., ['GATCTGGCAG', 'GTGGCGG']
-                enzyme: List[AnyStr] = None, # List of restriction enzyme names for splitting vector/insert, e.g., ['XbaI', 'BamHI']
+                HR_sequence: Optional[List[AnyStr]] = None, # List of homology region sequences for splitting vector/insert, e.g., ['GATCTGGCAG', 'GTGGCGG']
+                enzyme: Optional[List[AnyStr]] = None, # List of restriction enzyme names for splitting vector/insert, e.g., ['XbaI', 'BamHI']
                 primer_overhang_vector_len: int = 5, # Length of vector overhang in primers, usually 25+ for HR, 4+ for enzyme-based
                 primer_overhang_insert_len: int = 25 # Length of insert overhang in primers, used for PCR priming
                 ) -> dict:
@@ -254,7 +252,6 @@ def make_plasmid(vector_file: AnyStr, # Path to the vector file, should be a .dn
 
 
 
-
 def write_snapgene(construct: Seq | AnyStr, 
                    path: AnyStr,
                    insert_seq: Seq | AnyStr, insert_name: AnyStr, insert_color: str = '#31849b',
@@ -289,7 +286,6 @@ def write_snapgene(construct: Seq | AnyStr,
     tac.write(path)
 
     return None
-
 
 
 

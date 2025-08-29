@@ -1,20 +1,6 @@
-################## common terminal command ###############
+################## common terminal ###############
 # release linux cache memory
 sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches'
-
-# pymol reindex
-alter (fold_2025_05_19_22_11_atrkd_chk1_sq2_atp_mg_model_0 and chain A),resi=str(int(resi)+2295)
-# pymol change chain id
-alter (chain B), chain='A'
-# pymol align
-align mobile, reference
-align mobile and chain A, reference and chain B
-# remove res
-remove sol
-remove resn NA,CL
-hide hrydrogen
-H_add
-
 
 # check if GPU is okay
 python -c "import torch; print(torch.cuda.is_available())"
@@ -32,36 +18,61 @@ for f in *.*; do pre="${f%.*}"; suf="${f##*.}"; mv -i -- "$f" "${pre//./_}.${suf
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 
 
+################## pymol ###############
+# pymol reindex
+alter (fold_2025_05_19_22_11_atrkd_chk1_sq2_atp_mg_model_0 and chain A),resi=str(int(resi)+2295)
+# pymol change chain id
+alter (chain B), chain='A'
+# pymol align
+align mobile, reference
+align mobile and chain A, reference and chain B
+# remove res
+remove sol
+remove resn NA,CL
+hide hrydrogen
+H_add
+
+
+################## WSL ###############
+# mount a windows drive to wsl
+sudo mkdir /mnt/driveX
+sudo mount -t drvfs M: /mnt/driveX
+
+# mount a windows share to wsl if already have access to share
+# use single quotes otherwise you will need to escape the backslashes
+sudo mkdir /mnt/mint
+sudo mount -t drvfs '\\10.36.172.157\mint' /mnt/mint
+
+
+################## miniforge ##################
+# install mamba
+
+# export and import env
+mamba env export --no-builds | grep -v "^prefix: " > ngs.yml
+mamba env create -f ngs.yml -p ~/miniforge3/envs/ngs
+
+# mamba export all envs
+for env in $(mamba env list | cut -d" " -f1); do 
+   if [[ ${env:0:1} == "#" ]] ; then continue; fi;
+   mamba env export -n $env > ./${env}.yml
+done
+
+# mamba remove all installed package in base env
+mamba remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
+mamba remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
 
     
-#################### run shinny APP #####################
+################## run shinny APP ##################
 # run shinyAPP from terminal
 cd ~/Documents/GitHub/myScript/R_scripts/shiny_generate_well_positions
 nohup R -e "shiny::runApp('shinyApp.R')" &
 
 
-###################### local PC #######################
+################## local PC ##################
 Anydesk Shulab_Desktop: 1936728718 123456abc-
 
 
-######################### conda #########################
-# export and import env
-conda env export --no-builds | grep -v "^prefix: " > ngs.yml
-conda env create -f ngs.yml -p ~/miniconda3/envs/ngs
-
-# conda export all envs
-for env in $(conda env list | cut -d" " -f1); do 
-   if [[ ${env:0:1} == "#" ]] ; then continue; fi;
-   conda env export -n $env > ./${env}.yml
-done
-
-# conda remove all installed package in base env
-conda remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
-conda remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
-
-
-
-####################### samba share #####################
+################## samba share ##################
 # start samba server
 sudo service smbd restart
 sudo ufw allow samba
@@ -75,7 +86,7 @@ sudo smbpasswd [username]
 sudo pdbedit -x -u [username]
 
 
-################### cellprofiler-analyst ################
+################## cellprofiler-analyst ##################
 # run cellprofiler-analyst
 conda activate cellprofiler-analyst
 python3 -m CellProfiler-Analyst
@@ -92,7 +103,7 @@ UPDATE Per_Image SET Image_ObjectsPathName_mask_cp_masks_cell="Z:/Data/Project_c
 
 
 
-################### install amber24 ################
+################## install amber24 ##################
 # ubuntu 22.04 lts, failed....
 
 # require a conda env
