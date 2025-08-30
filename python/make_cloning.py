@@ -11,8 +11,7 @@ Should run in "ngs" conda environment
 """
 
 #%%
-from csv import Error
-import os, re, string
+import os, re, string, math
 from glob import glob
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -165,7 +164,7 @@ def make_plasmid(vector_file: AnyStr, # Path to the vector file, should be a .dn
         assert type(HR_sequence) is list, 'HR_sequence must be a list'
     if enzyme:
         assert type(enzyme) is list, 'enzyme must be a list'
-        
+    
     # vector read
     vector = snap.parse(vector_file)
     vector_feats = vector.features
@@ -289,49 +288,96 @@ def write_snapgene(construct: Seq | AnyStr,
 
 
 
-def convert_to_plate_format(primer, plate_nrow = 8, plate_ncol = 12):
-    primer['id'] = range(1, len(primer) + 1)
-
-    # Create well names (A1, A2, ..., H12)
-    rows = list(string.ascii_uppercase[:plate_nrow]) * plate_ncol
-    cols = [col for col in range(1, plate_ncol + 1) for _ in range(plate_nrow)]
-    wells = [f"{row}{col}" for row, col in zip(rows, cols)]
-
-    plate = pd.DataFrame({'well': wells})
-    plate['id'] = range(1, len(plate) + 1)
-
-    # Set position - merge plate and primer data
-    plate_primer = pd.merge(plate, primer, on='id', how='outer')
-    plate_primer = plate_primer.dropna(subset=['name'])
-
-    # Convert to long shape
-    # First, drop unnecessary columns and rename
-    plate_primer_processed = plate_primer.drop(columns=['id', 'primer_r'])
-    plate_primer_processed = plate_primer_processed.rename(columns={
-        'primer_f': '_f', 'primer_r_revcomp': '_r'})
-
-    # Pivot longer (equivalent to pivot_longer in R)
-    plate_primer_long = pd.melt(
-        plate_primer_processed,
-        id_vars=['well', 'name'], value_vars=['_f', '_r'],
-        var_name='order', value_name='sequence')
-
-    # Unite name and order columns (equivalent to unite in R)
-    plate_primer_long['name'] = plate_primer_long['name'] + plate_primer_long['order']
-    plate_primer_long = plate_primer_long.drop(columns=['order'])
-
-    plate_primer_long = plate_primer_long.sort_values(['well','name']).reset_index(drop=True)
-
-    print(plate_primer_long)
-
-    return plate_primer_long
-
+def convert_to_plate_format(primer, plate_nrow=8, plate_ncol=12):
+    """
+    Convert primer data to plate format, creating multiple plates if needed.
+    
+    Parameters:
+    primer: DataFrame with primer data
+    plate_nrow: number of rows per plate (default 8)
+    plate_ncol: number of columns per plate (default 12)
+    
+    Returns:
+    List of DataFrames, one for each plate needed
+    """
+    
+    # Calculate plate capacity and number of plates needed
+    plate_capacity = plate_nrow * plate_ncol
+    num_primers = len(primer)
+    num_plates = math.ceil(num_primers / plate_capacity)
+    
+    print(f"Number of primers: {num_primers}")
+    print(f"Plate capacity: {plate_capacity}")
+    print(f"Number of plates needed: {num_plates}")
+    
+    # List to store all plate DataFrames
+    all_plates = []
+    
+    for plate_num in range(num_plates):
+        # Calculate start and end indices for this plate
+        start_idx = plate_num * plate_capacity
+        end_idx = min((plate_num + 1) * plate_capacity, num_primers)
+        
+        # Subset primers for this plate
+        primer_subset = primer.iloc[start_idx:end_idx].copy()
+        primer_subset['id'] = range(1, len(primer_subset) + 1)
+        
+        # Create well names for this plate
+        rows = list(string.ascii_uppercase[:plate_nrow]) * plate_ncol
+        cols = [col for col in range(1, plate_ncol + 1) for _ in range(plate_nrow)]
+        wells = [f"{row}{col}" for row, col in zip(rows, cols)]
+        
+        plate = pd.DataFrame({'well': wells})
+        plate['id'] = range(1, len(plate) + 1)
+        
+        # Merge plate and primer data
+        plate_primer = pd.merge(plate, primer_subset, on='id', how='outer')
+        plate_primer = plate_primer.dropna(subset=['name'])
+        
+        # Convert to long shape
+        plate_primer_processed = plate_primer.drop(columns=['id', 'primer_r'])
+        plate_primer_processed = plate_primer_processed.rename(columns={
+            'primer_f': '_f', 'primer_r_revcomp': '_r'})
+        
+        # Pivot longer
+        plate_primer_long = pd.melt(
+            plate_primer_processed,
+            id_vars=['well', 'name'], value_vars=['_f', '_r'],
+            var_name='order', value_name='sequence')
+        
+        # Unite name and order columns
+        plate_primer_long['name'] = plate_primer_long['name'] + plate_primer_long['order']
+        plate_primer_long = plate_primer_long.drop(columns=['order'])
+        
+        # Sort by natural order (A1, A2, ..., A9, A10, A11, A12) and name
+        def natural_sort_key(well):
+            """Create sort key for natural ordering of wells"""
+            match = re.match(r'([A-Z])(\d+)', well)
+            if match:
+                letter, number = match.groups()
+                return (letter, int(number))
+            return (well, 0)
+        
+        plate_primer_long['well_sort_key'] = plate_primer_long['well'].apply(natural_sort_key)
+        plate_primer_long = plate_primer_long.sort_values(['well_sort_key', 'name']).reset_index(drop=True)
+        plate_primer_long = plate_primer_long.drop(columns=['well_sort_key'])
+        
+        # Add plate number for identification
+        plate_primer_long['plate_number'] = plate_num + 1
+        
+        print(f"\nPlate {plate_num + 1}:")
+        print(plate_primer_long)
+        
+        all_plates.append(plate_primer_long)
+    
+    return all_plates
 
 
 #%%
 if __name__ == '__main__':
 
-    os.chdir('/media/hao/Data/Others/2025-08-15_TF_cloning')
+    # os.chdir('/media/hao/Data/Others/2025-08-15_TF_cloning')
+    os.chdir('/mnt/mint/Data/Others/2025-08-15_TF_cloning')
 
     # by enzyme cut
     res = make_plasmid('ZQ360_Lenti_G11-Xba1-shuttle-BamH1-NLS-Gal4DBD-HT3-T2A-G1-9.dna',
@@ -352,7 +398,7 @@ if __name__ == '__main__':
                 primer_overhang_insert_len=25)
 
     # by input sequence
-    f = '2025-08-18_cloning.csv'
+    f = '2025-08-29_cloning.csv'
     part1 = pd.read_csv(f) # part1.columns
     res = make_plasmid('ZQ360_Lenti_G11-Xba1-shuttle-BamH1-NLS-Gal4DBD-HT3-T2A-G1-9.dna',
             insert_sequences=part1['cds'].to_list(),
@@ -378,8 +424,9 @@ if __name__ == '__main__':
     # write primer
     res['primers'].to_csv(f.replace('.csv','_primer.csv'), index=False)
     # convert to plate IDT format
-    primer_plate = convert_to_plate_format(res['primers'])
-    primer_plate.to_csv(f.replace('.csv', '_primer_plate2.csv'), index=False)
+    primer_plates = convert_to_plate_format(res['primers'])
+    for i, plate in enumerate(primer_plates):
+        plate.to_csv(f.replace('.csv', f'_primer_plate_{i+1}.csv'), index=False)
 
 
     # write snapgene
@@ -404,3 +451,5 @@ if __name__ == '__main__':
 
 
 
+
+# %%

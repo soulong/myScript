@@ -20,15 +20,16 @@ complex <- read_excel('tf_coactivtor_match_ORFome.xlsx', sheet='coactivator') %>
   glimpse() 
 # count(complex, type)
 part <- complex %>% 
-  dplyr::filter(type %in% c('swi_snf_complex', 'mediator')) %>% 
+  dplyr::filter(!(type %in% c('swi_snf_complex', 'mediator'))) %>% 
   pull(symbol) %>% unique() %>% print()
 
-nymc <- read_excel('MycN interaction mapping.xlsx') %>% 
-  pull(1) %>% last() %>% 
-  str_split(' ', simplify=T) %>% 
-  str_squish() %>% unique() %>% print()
-
-input_list <- c(part, nymc) %>% unique() %>% print()
+# nymc <- read_excel('MycN interaction mapping.xlsx') %>% 
+#   pull(1) %>% last() %>% 
+#   str_split(' ', simplify=T) %>% 
+#   str_squish() %>% unique() %>% print()
+# 
+# input_list <- c(part, nymc) %>% unique() %>% print()
+input_list <- part
 
 # # goids to gene
 # # listDatasets(useMart("ENSEMBL_MART_ENSEMBL")) %>% view()
@@ -95,6 +96,7 @@ mart_anno_cds <- mart_anno_cds %>%
 
 ## merge id and sequence
 df <- left_join(mart_anno_id, mart_anno_cds) %>% 
+  filter(cds_length < 10000) %>% 
   glimpse()
 
 write_csv(df, str_glue('{Sys.Date()}_cloning.csv'))

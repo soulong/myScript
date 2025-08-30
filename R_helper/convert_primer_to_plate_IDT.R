@@ -9,7 +9,7 @@ getwd()
 
 
 # load primer
-f <- '2025-08-18_cloning_primer.csv'
+f <- '2025-08-29_cloning_primer.csv'
 primer <- read_csv(f) %>% 
   mutate(id=row_number()) %>% print()
 
