@@ -15,12 +15,16 @@ import os, re, string, math
 from glob import glob
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio import pairwise2
 from Bio.Restriction import RestrictionBatch as Batch
 import autosnapgene as snap
 # from google_crc32c import exc
 from tqdm import tqdm
 from typing import List, AnyStr, Optional
 import pandas as pd
+
+
 
 
 def read_dna_file(f: Optional[AnyStr] = None, multiple: bool = False) -> Seq | List[Seq]:
@@ -49,6 +53,162 @@ def read_dna_file(f: Optional[AnyStr] = None, multiple: bool = False) -> Seq | L
 
     return seq.upper()
 
+
+
+def merge_dna_to_fasta(directory, output_file='merged.fa'):
+    """
+    Merges all .dna/.fa files in a directory into a single .fa file.
+    
+    Args:
+        directory (str): The path to the directory containing .dna/.fa files.
+        output_file (str): The name of the output .fa file.
+    """
+
+    # Check if the directory exists
+    if not os.path.isdir(directory):
+        print(f"Error: Directory '{directory}' not found.")
+        return
+
+    # Find all .dna files
+    dna_files = [f for f in os.listdir(directory) if f.endswith('.dna') or f.endswith('.fa')]
+    
+    if not dna_files:
+        print(f"No .dna/.fa files found in directory '{directory}'.")
+        return
+
+    # Process each file
+    all_records = []
+    for filename in tqdm(dna_files):
+        filepath = os.path.join(directory, filename)
+        try:
+            # get Bio.Seq.Seq object
+            seq = read_dna_file(filepath)
+            # The ID is generated from the filename
+            id = os.path.splitext(filename)[0]
+
+            record = SeqRecord(seq, id=id, description="")
+            all_records.append(record)
+        
+        except Exception as e:
+            print(f"Skipping file {filename} due to an error: {e}")
+
+    # Write all records to a single FASTA file
+    if all_records:
+        with open(output_file, 'w') as out_handle:
+            SeqIO.write(all_records, out_handle, "fasta")
+        print(f"Successfully merged {len(dna_files)} files into {output_file}.")
+    else:
+        print("No valid sequences were found to write.")
+
+    return all_records
+
+
+
+def align_sequences(seq_directory, fasta_file, top_n=5):
+    """
+    Aligns sequences from a directory of .seq files against a single FASTA file
+    and ranks the top N matches by alignment score.
+
+    Args:
+        seq_directory (str): Path to the directory containing .seq files.
+        fasta_file (str): Path to the single .fa (FASTA) file.
+        top_n (int): The number of top matches to display.
+    """
+
+    # Step 1: Read all target sequences from the FASTA file
+    fasta_records = list(SeqIO.parse(fasta_file, "fasta"))
+    if not fasta_records:
+        print(f"Error: No records found in FASTA file '{fasta_file}'.")
+        return
+
+    # Step 2: Read and store all query sequences from the .seq directory
+    query_sequences = []
+    if not os.path.isdir(seq_directory):
+        print(f"Error: Directory '{seq_directory}' not found.")
+        return
+
+    for filename in os.listdir(seq_directory):
+        if filename.endswith(".seq"):
+            filepath = os.path.join(seq_directory, filename)
+            try:
+                with open(filepath, 'r') as f:
+                    sequence_string = f.read().strip()
+                    query_id = os.path.splitext(filename)[0]
+                    query_sequences.append((query_id, Seq(sequence_string)))
+            except Exception as e:
+                print(f"Warning: Could not read file '{filename}'. Skipping. Error: {e}")
+
+    if not query_sequences:
+        print(f"No .seq files found in directory '{seq_directory}'.")
+        return
+
+    # Step 3: Perform pairwise global alignment and store results
+    all_alignments = []
+    print("Starting alignment process...")
+
+    # Use a global alignment with match/mismatch scores
+
+    for query_id, query_seq in tqdm(query_sequences[1:2], position=0):
+        for fasta_record in tqdm(fasta_records, position=1, mininterval=1):
+            # Align the two sequences and get the alignment score
+            # The 'globalxx' aligns with a constant gap penalty
+            # The first alignment is generally the best for simple cases
+            # alignments = pairwise2.align.globalxx(
+            #     query_seq, fasta_record.seq, score_only=False)
+            # score = alignments[0].score
+            score = pairwise2.align.globalms(
+                query_seq, fasta_record.seq, 2, -1, -0.5, -0.1, score_only=True)
+            if score:
+                all_alignments.append({
+                    "query_id": query_id,
+                    "target_id": fasta_record.id,
+                    "score": score})
+
+    # Step 4: Rank the results by score in descending order
+    all_alignments.sort(key=lambda x: x['score'], reverse=True)
+
+    # Step 5: Get top N results
+    print("\n--- Top Aligned Records (by Score) ---")
+    if all_alignments:
+        for i in range(min(top_n, len(all_alignments))):
+            result = all_alignments[i]
+            print(f"Rank {i+1}:")
+            print(f"  Query ID: {result['query_id']}")
+            print(f"  Target ID: {result['target_id']}")
+            print(f"  Alignment Score: {result['score']}\n")
+    else:
+        print("No alignments could be generated. Please check your input files.")
+
+    
+    return result
+
+# [(i, x.id) for i, x in enumerate(fasta_records) if 'SS18L2' in x.id]
+# fasta_records[267].id
+# pairwise2.align.globalms(
+#                 query_seq, fasta_records[2].seq, 2, -1, -0.5, -0.1, score_only=False)
+# pairwise2.align.globalms(
+#                 query_seq, fasta_records[267].seq, 2, -1, -0.5, -0.1, score_only=False)
+# pairwise2.align.globalms(
+#                 query_seq, fasta_records[3].seq, 2, -1, -0.5, -0.1, score_only=False)
+
+
+# pairwise2.align.globalxx(
+#                 query_seq, fasta_records[2].seq, score_only=True)
+# pairwise2.align.localxx(
+#                 query_seq, fasta_records[267].seq, 2, -1, score_only=True)
+# pairwise2.align.localxx(
+#                 query_seq, fasta_records[3].seq, 2, -1, score_only=True)
+
+# import psa
+
+# alignments = aligner.align(query_seq, fasta_records[2].seq)
+# alignments.score
+
+# alignments = aligner.align(query_seq, fasta_records[267].seq)
+# alignments.score
+
+# alignments = aligner.align(query_seq, fasta_records[3].seq)
+# alignments.score
 
 
 def split_DNA_by_sequence(dna: Seq | AnyStr, split_sequence: List[Seq | AnyStr]) -> List[Seq]:
@@ -288,7 +448,7 @@ def write_snapgene(construct: Seq | AnyStr,
 
 
 
-def convert_to_plate_format(primer, plate_nrow=8, plate_ncol=12):
+def convert_primer_to_plate_format(primer, plate_nrow=8, plate_ncol=12):
     """
     Convert primer data to plate format, creating multiple plates if needed.
     
@@ -377,7 +537,7 @@ def convert_to_plate_format(primer, plate_nrow=8, plate_ncol=12):
 if __name__ == '__main__':
 
     # os.chdir('/media/hao/Data/Others/2025-08-15_TF_cloning')
-    os.chdir('/mnt/mint/Data/Others/2025-08-15_TF_cloning')
+    os.chdir('/mnt/c/Users/haohe/Desktop')
 
     # by enzyme cut
     res = make_plasmid('ZQ360_Lenti_G11-Xba1-shuttle-BamH1-NLS-Gal4DBD-HT3-T2A-G1-9.dna',
@@ -424,29 +584,36 @@ if __name__ == '__main__':
     # write primer
     res['primers'].to_csv(f.replace('.csv','_primer.csv'), index=False)
     # convert to plate IDT format
-    primer_plates = convert_to_plate_format(res['primers'])
+    primer_plates = convert_primer_to_plate_format(res['primers'])
     for i, plate in enumerate(primer_plates):
         plate.to_csv(f.replace('.csv', f'_primer_plate_{i+1}.csv'), index=False)
 
 
-    # write snapgene
-    res2 = make_plasmid('ZQ361_Lenti_G10-Xba1-shuttle-BamH1-NLS-VPR-HT6.dna',
-        insert_sequences=part1['cds'].to_list(),
-        insert_names=part1['symbol'].to_list(),
-        insert_is_clean=True,
-        HR_sequence=['GATCTGGCAGCGGTGGAGGCTCTAGA', 'GGATCCAGTGGCGGGAGTGGAGGTG'],
-        primer_overhang_vector_len=25,
-        primer_overhang_insert_len=28)
-    out_dir2 = 'ZQ361'
-    os.makedirs(out_dir2, exist_ok=True)
-    for idx, _ in tqdm(enumerate(res2['constructs'])):
-        write_snapgene(construct=res2['constructs'][idx], 
-            path=os.path.join(out_dir2, 'ZQ361_Lenti_G10-' + res['names'][idx] + '-NLS-VPR-HT6' + '.dna'),
-            insert_seq=res2['insert_seqs'][idx], 
-            insert_name=res2['names'][idx],
-            vector_seq=res2['vector_seq'], 
-            vector_feats=res2['vector_feats']
-            )
+    # merge all .dna to one .fa, for better alignment usage
+    _ = merge_dna_to_fasta('/mnt/c/Users/haohe/Desktop/ZQ360', '/mnt/c/Users/haohe/Desktop/ZQ360_merge.fa')
+
+    # align sanger sequencing result
+    x = align_sequences('/mnt/c/Users/haohe/Desktop/sanger', '/mnt/c/Users/haohe/Desktop/ZQ360_merge.fa')
+
+
+    # # write snapgene
+    # res2 = make_plasmid('ZQ361_Lenti_G10-Xba1-shuttle-BamH1-NLS-VPR-HT6.dna',
+    #     insert_sequences=part1['cds'].to_list(),
+    #     insert_names=part1['symbol'].to_list(),
+    #     insert_is_clean=True,
+    #     HR_sequence=['GATCTGGCAGCGGTGGAGGCTCTAGA', 'GGATCCAGTGGCGGGAGTGGAGGTG'],
+    #     primer_overhang_vector_len=25,
+    #     primer_overhang_insert_len=28)
+    # out_dir2 = 'ZQ361'
+    # os.makedirs(out_dir2, exist_ok=True)
+    # for idx, _ in tqdm(enumerate(res2['constructs'])):
+    #     write_snapgene(construct=res2['constructs'][idx], 
+    #         path=os.path.join(out_dir2, 'ZQ361_Lenti_G10-' + res['names'][idx] + '-NLS-VPR-HT6' + '.dna'),
+    #         insert_seq=res2['insert_seqs'][idx], 
+    #         insert_name=res2['names'][idx],
+    #         vector_seq=res2['vector_seq'], 
+    #         vector_feats=res2['vector_feats']
+    #         )
 
 
 

@@ -16,12 +16,12 @@ getwd()
 
 
 ## input gene list ----------------------------
-complex <- read_excel('tf_coactivtor_match_ORFome.xlsx', sheet='coactivator') %>% 
-  glimpse() 
-# count(complex, type)
-part <- complex %>% 
-  dplyr::filter(!(type %in% c('swi_snf_complex', 'mediator'))) %>% 
-  pull(symbol) %>% unique() %>% print()
+# complex <- read_excel('tf_coactivtor_match_ORFome.xlsx', sheet='coactivator') %>% 
+#   glimpse() 
+# # count(complex, type)
+# part <- complex %>% 
+#   dplyr::filter(!(type %in% c('swi_snf_complex', 'mediator'))) %>% 
+#   pull(symbol) %>% unique() %>% print()
 
 # nymc <- read_excel('MycN interaction mapping.xlsx') %>% 
 #   pull(1) %>% last() %>% 
@@ -29,25 +29,60 @@ part <- complex %>%
 #   str_squish() %>% unique() %>% print()
 # 
 # input_list <- c(part, nymc) %>% unique() %>% print()
-input_list <- part
+# input_list <- part
 
-# # goids to gene
-# # listDatasets(useMart("ENSEMBL_MART_ENSEMBL")) %>% view()
-# mart <- useMart("ENSEMBL_MART_ENSEMBL", "hsapiens_gene_ensembl", host="https://useast.ensembl.org/")
-# # listFilters(mart) %>% view()
-# # listAttributes(mart) %>% view()
-# goid_to_gene <- function(goids) {
-#   gene <- getBM(
-#     attributes=c("hgnc_symbol","ensembl_gene_id","hgnc_id","entrezgene_id","gene_biotype"),
-#     filters="go",
-#     values=goids,
-#     mart=mart, uniqueRows=T, useCache=F) %>% as_tibble()
-#   gene <- gene %>% 
-#     filter(hgnc_symbol != "", gene_biotype == "protein_coding") %>% 
-#     distinct(hgnc_symbol, .keep_all=T) %>% 
-#     arrange(hgnc_symbol)
-#   return(gene)
-# }
+# go to gene
+goid_to_gene <- function(goids, org_db=org.Hs.eg.db::org.Hs.eg.db) {
+  # columns(org_db)
+  # keytypes(org_db)
+  info <- AnnotationDbi::select(
+    org_db, keys = goids,
+    columns = c('SYMBOL','ENTREZID','UNIPROT'), keytype = 'GOALL') %>% 
+    as_tibble() %>% 
+    # filter(EVIDENCEALL %in% c()) %>% 
+    dplyr::select(!c(GOALL:ONTOLOGYALL)) %>% 
+    distinct(.keep_all = T) %>% 
+    janitor::clean_names()
+  return(info)
+}
+
+input_list <- list(
+  'translation factor activity' = goid_to_gene('GO:0180051'),
+  'transcription factor binding' = goid_to_gene('GO:0008134'),
+  'transcription regulator complex' = goid_to_gene('GO:0005667'),
+  'transcription corepressor activity' = goid_to_gene('GO:0003714'),
+  'transcription coactivator activity' = goid_to_gene('GO:0003713'),
+  'mediator complex' = goid_to_gene('GO:0016592'),
+  'chromatin remodeling' = goid_to_gene('GO:0006338'),
+  'histone modifying activity' = goid_to_gene('GO:0140993')
+)
+
+TF <- read_excel("D:\\Resource\\human_TF\\The Human Transcription Factors.xlsx") %>% 
+  janitor::clean_names() %>% 
+  filter(is_tf == "Yes") %>% 
+  dplyr::select(symbol=hgnc_symbol, entrezid=entrez_gene_id,
+                is_tf=is_tf, tf_assessment, dbd_type=dbd, binding_mode) %>% 
+  glimpse()
+TF <- AnnotationDbi::select(
+  org.Hs.eg.db, keys = TF$entrezid,
+  columns = c('SYMBOL','ENTREZID','UNIPROT'), keytype = 'ENTREZID') %>% 
+  as_tibble() %>% 
+  janitor::clean_names() %>% 
+  reframe(uniprot=str_c(uniprot, collapse=';'), .by=c(entrezid,symbol)) %>% 
+  right_join(TF)
+
+TcoF <- input_list %>% 
+  list_rbind(names_to='go_type') %>% 
+  reframe(uniprot=str_c(uniprot, collapse=';'), .by=c(entrezid,symbol, go_type)) %>% 
+  reframe(go_type=str_c(go_type, collapse=';'), .by=c(symbol,entrezid, uniprot)) %>% 
+  filter(!(entrezid %in% TF$entrezid))
+
+# save
+write_xlsx(list(TF=TF, TcoF=TcoF), str_glue('{Sys.Date()}_TF_and_TcoF.xlsx'))
+
+
+
+
 
 
 
@@ -74,13 +109,12 @@ mart_anno_id <- mart_anno_id %>%
   group_by(symbol, entrez_id) %>% 
   mutate(across(everything(), \(x) ifelse(x=='',NA,x))) %>% 
   arrange(uniprot, transcript_mane_select,transcript_is_canonical,  
-          transcript_gencode_basic, transcript_primary_basic, 
-          .by_group=TRUE) %>% #view()
+          transcript_gencode_basic, transcript_primary_basic, .by_group=TRUE) %>% #view()
   slice_head(n=1) %>% 
   dplyr::select(!c(transcript_mane_select:transcript_primary_basic)) %>% 
   ungroup() %>% glimpse()
 
-## sequence anno
+## cds sequence anno
 mart_anno_cds <- getBM(
   attributes=c('ensembl_transcript_id','coding'),
   filters="ensembl_transcript_id", 
@@ -96,7 +130,7 @@ mart_anno_cds <- mart_anno_cds %>%
 
 ## merge id and sequence
 df <- left_join(mart_anno_id, mart_anno_cds) %>% 
-  filter(cds_length < 10000) %>% 
+  # filter(cds_length < 10000) %>% 
   glimpse()
 
 write_csv(df, str_glue('{Sys.Date()}_cloning.csv'))
@@ -109,30 +143,68 @@ ggplot(df, aes(x=cds_length)) +
 
 
 
+
+
 ## add uniprot annotation ----------------------------
+df_list <- c('tf', 'coactivator') %>% 
+  set_names(nm=c('tf', 'coactivator')) %>% 
+  map(\(x) read_excel('tf_coactivtor_match_ORFome.xlsx', x))
+df_list[[2]] <- df_list[[2]] %>% 
+  dplyr::rename(uniprot = uniprotswissprot)
+uniprot_id_list <- df_list %>% 
+  map(\(x) pull(x, uniprot))
+
 up <- UniProt.ws(taxId=9606)
 # keytypes(up)  GeneID UniProtKB Gene_Name
 # columns(up)
-up_anno <- UniProt.ws::select(
-  up, keys=df$uniprot, 
-  columns=columns(up),
-  keytype="UniProtKB") %>% 
-  as_tibble() %>% dplyr::filter(Reviewed=="reviewed") %>% glimpse()
+up_anno <- uniprot_id_list %>% 
+  map(\(x) UniProt.ws::select(
+    up, keys=x, 
+    columns=columns(up),
+    keytype="UniProtKB") %>% 
+      as_tibble() %>% 
+      dplyr::filter(Reviewed=="reviewed")
+  ) %>% glimpse()
+
 up_anno_selected <- up_anno %>% 
-  dplyr::select(#query=From, 
-                uniprot=Entry,
-                # symbol='Gene.Names..primary.', alias='Gene.Names..synonym.',
-                # protein_length=Length, 
-                protein_uniprot=Sequence) %>%
+  map(\(x) dplyr::select(
+    x,
+    #query=From, 
+    uniprot=Entry,
+    symbol=Gene.Names..primary.,
+    #symbol='Gene.Names..primary.', alias='Gene.Names..synonym.',
+    entrezid=GeneID,
+    ec_number=EC.number,
+    protein_name=Protein.names,
+    protein_family=Protein.families,
+    protein_length=Length,
+    protein_sequence=Sequence,
+
+    dbd=DNA.binding,
+    domain=Domain..FT.,
+    topological_domain=Topological.domain,
+    transmembrane=Transmembrane,
+    intramembrane=Intramembrane,
+    motif=Motif,
+    signal_peptide=Signal.peptide) %>% 
+      mutate(entrezid=str_replace_all(entrezid, '[;]', '')) %>%
+      separate_wider_regex(
+        dbd, c('.*DNA_BIND ', dbd_start='\\d+', '..', dbd_end='\\d+', ';.*'),
+        too_few='align_start',cols_remove=F)
+  ) %>% 
   # mutate(across(entrez_id:ensembl_transcript_id, \(x) str_replace_all(x,";",""))) %>% 
   # mutate(ensembl_transcript_id=str_replace_all(ensembl_transcript_id,"[.]\\d?","")) %>% 
   glimpse()
 
 
-df_uniprot <- left_join(df, up_anno_selected) %>% 
-  glimpse()
 
-# write_csv(df_uniprot, 'nmyc_related.csv')
+# df_uniprot <- left_join(df, up_anno_selected) %>% 
+#   glimpse()
+
+
+tf_up <- left_join(df_list$tf, up_anno_selected$tf) %>% glimpse()
+write_xlsx(tf_up, str_glue('{Sys.Date()}_TF_uniprotAnno.xlsx'))
+
 
 
 
