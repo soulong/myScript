@@ -5,8 +5,8 @@
 // Get input and output directories
 inputDir = getDirectory("Choose input directory with RGB images");
 outputDir = getDirectory("Choose output directory for processed images");
-//inputDir = "C:/Users/haohe/Desktop/20250523数据处理/20250523";
-//outputDir = "C:/Users/haohe/Desktop/20250523数据处理/green";
+//inputDir = "C:/Users/haohe/Desktop/免疫组化/COL1";
+//outputDir = "C:/Users/haohe/Desktop/免疫组化/COL1";
 
 // Get list of image files in input directory
 fileList = getFileList(inputDir);
@@ -14,7 +14,8 @@ fileList = getFileList(inputDir);
 // Filter for common image formats
 imageFiles = newArray();
 for (i = 0; i < fileList.length; i++) {
-    if (endsWith(fileList[i], ".tif") || endsWith(fileList[i], ".tiff") || 
+    if (endsWith(fileList[i], ".TIF") || endsWith(fileList[i], ".TIFF") ||
+    	endsWith(fileList[i], ".tif") || endsWith(fileList[i], ".tiff") || 
         endsWith(fileList[i], ".jpg") || endsWith(fileList[i], ".jpeg") || 
         endsWith(fileList[i], ".png") || endsWith(fileList[i], ".bmp")) {
         imageFiles = Array.concat(imageFiles, fileList[i]);
@@ -44,10 +45,11 @@ targetChannel = 2;        // Which channel to keep (1=first, 2=second, 3=third, 
                          // For RGB: 1=red, 2=green, 3=blue
                          // For multi-channel stacks: depends on your specific setup
 
+// Speed up processing by hiding image windows
+setBatchMode(false); 
+
 
 // Process each image file
-setBatchMode(false); // Speed up processing by hiding image windows
-
 
 for (i = 0; i < imageFiles.length; i++) {
     // Show progress

@@ -19,7 +19,6 @@ from Bio.SeqRecord import SeqRecord
 from Bio import pairwise2
 from Bio.Restriction import RestrictionBatch as Batch
 import autosnapgene as snap
-# from google_crc32c import exc
 from tqdm import tqdm
 from typing import List, AnyStr, Optional
 import pandas as pd
@@ -593,7 +592,7 @@ if __name__ == '__main__':
     _ = merge_dna_to_fasta('/mnt/c/Users/haohe/Desktop/ZQ360', '/mnt/c/Users/haohe/Desktop/ZQ360_merge.fa')
 
     # align sanger sequencing result
-    x = align_sequences('/mnt/c/Users/haohe/Desktop/sanger', '/mnt/c/Users/haohe/Desktop/ZQ360_merge.fa')
+    x = align_sequences('/mnt/c/Users/haohe/Desktop/sanger', '/mnt/c/Users/haohe/Desktop/ZQ360_merge.fa', top_n=3)
 
 
     # # write snapgene
