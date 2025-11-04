@@ -43,6 +43,9 @@ sudo mount -t drvfs M: /mnt/driveX
 sudo mkdir /mnt/mint
 sudo mount -t drvfs '\\10.36.172.157\mint' /mnt/mint
 
+# remove a mounted driver
+sudo rm /mnt/driveX
+
 
 ################## miniforge ##################
 # install mamba
