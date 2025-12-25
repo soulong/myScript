@@ -1,4 +1,8 @@
 ################## common terminal ###############
+# convert \r problem in Win system
+sudo apt install dos2unix
+dos2unix xxxx.sh
+
 # release linux cache memory
 sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches'
 
@@ -17,26 +21,18 @@ for f in *.*; do pre="${f%.*}"; suf="${f##*.}"; mv -i -- "$f" "${pre//./_}.${suf
 # connect to local colab
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 
-
-################## pymol ###############
-# pymol reindex
-alter (fold_2025_05_19_22_11_atrkd_chk1_sq2_atp_mg_model_0 and chain A),resi=str(int(resi)+2295)
-# pymol change chain id
-alter (chain B), chain='A'
-# pymol align
-align mobile, reference
-align mobile and chain A, reference and chain B
-# remove res
-remove sol
-remove resn NA,CL
-hide hrydrogen
-H_add
-
+# rename all file names under a directory
+# check first, then remove echo for real running
+for i in *target.sorted.bam$*;
+do
+   echo "mv $i ${i%target.sorted.bam}sorted.bam"
+   mv $i ${i%target.sorted.bam}sorted.bam
+done
 
 ################## WSL ###############
 # mount a windows drive to wsl
-sudo mkdir /mnt/driveX
-sudo mount -t drvfs M: /mnt/driveX
+sudo mkdir /mnt/e
+sudo mount -t drvfs E: /mnt/e
 
 # mount a windows share to wsl if already have access to share
 # use single quotes otherwise you will need to escape the backslashes
@@ -45,6 +41,46 @@ sudo mount -t drvfs '\\10.36.172.157\mint' /mnt/mint
 
 # remove a mounted driver
 sudo rm /mnt/driveX
+
+# export/import wsl image
+image_name=Ubuntu-24.04
+wsl --shutdown && wsl -l -v 
+wsl --export $image_name F:/${image_name}.tar
+wsl --import $image_name C:/wsl/ D:/${image_name}.tar --version 2
+wsl --unregister $image_name # release old image space
+
+# compact wsl image, first shtdown wsl2 by: wsl --shutdown
+# in powershell
+diskpart
+select vdisk file="C:\Users\haohe\AppData\Local\wsl\{4b2b6a94-a636-4186-9794-fb87d75f0b0c}\ext4.vhdx"
+attach vdisk readonly
+compact vdisk
+detach vdisk
+exit
+
+/mnt/e/04_LGLab/EED/CutTag_IMR_MEF/MEF
+
+################## NGS ##################
+# make sure no backspace in all filepaths
+# list files (absolute path)
+parameter=$(find . -type f -name "*.filtered.bam" -print0 | xargs -0 realpath | sort | tr '\n' ' ' | sed 's/ $//')
+# list files (relative path)
+parameter=$(find . -type f -name "*.filtered.bam" -print0 | xargs -0 realpath --relative-to=. | sort | tr '\n' ' ' | sed 's/ $//')
+# Convert space-separated string → array using IFS, make sure backspace in file path still works
+IFS=' ' read -ra parameterArray <<< "$parameter"
+echo "Found ${parameterArray[@]}"
+
+# deeptools heatmap
+computeMatrix reference-point -p 8 -R '/mnt/d/Index/hs/v49/genes_protein_coding.bed' \
+   -S ${parameterArray[@]} -o genes_protein_coding.gz \
+   -a 3000 -b 3000 --skipZeros --smartLabels --quiet
+plotHeatmap -m genes_protein_coding.gz -o genes_protein_coding.pdf --colorMap RdBu
+
+# markdup
+picard -Xmx48G MarkDuplicates --INPUT $bam --OUTPUT ${prefix}.markdup.bam --REFERENCE_SEQUENCE $fasta --METRICS_FILE ${prefix}_markdup_metric.txt
+
+
+
 
 
 ################## miniforge ##################
@@ -103,92 +139,40 @@ UPDATE Per_Image SET Image_ObjectsPathName_mask_cp_masks_cell="Z:/Data/Project_c
 
 
 
+################## pymol ###############
+# pymol reindex
+alter (fold_2025_05_19_22_11_atrkd_chk1_sq2_atp_mg_model_0 and chain A),resi=str(int(resi)+2295)
+# pymol change chain id
+alter (chain B), chain='A'
+# pymol align
+align mobile, reference
+align mobile and chain A, reference and chain B
+# remove res
+remove sol
+remove resn NA,CL
+hide hrydrogen
+H_add
 
 
 
-################## install amber24 ##################
-# ubuntu 22.04 lts, failed....
+################## 远程vscode 转发 windows 到 WSL ###############
 
-# require a conda env
-# if no amber MD needed, only install ambertools24 with conda for rapid installment
+# 以管理员身份运行
+$wslIp = (wsl hostname -I).Trim()
+if ($wslIp -eq "") {
+    Write-Host "WSL 未运行或无法获取 IP"
+    exit 1
+}
 
-# need cuda version <=12.4 for amber24
- 
-# install amber24/ambertools24 from source with GPU acceleration
-# download from website, put it at ~ 
-# ambertools24.tar.bz2 must be located at same dir as amber24.tar.bz2
-# tar files will generate ambertools24_src directory (for building)
-cd ~
-tar xvf Amber24.tar.bz2 
-tar xvf AmberTools24.tar.bz2
+# 删除旧规则
+netsh interface portproxy delete v4tov4 listenport=2222 listenaddress=0.0.0.0
 
-sudo apt update
-sudo apt upgrade
-sudo apt install -y \
-   tcsh make gcc g++ gfortran cmake flex bison \
-   patch bc wget xorg-dev libz-dev libbz2-dev 
+# 添加新规则
+netsh interface portproxy add v4tov4 listenport=2222 listenaddress=0.0.0.0 connectport=2222 connectaddress=$wslIp
 
-conda create -n amber24 -y
-conda activate amber24
-conda install -y \
-   numpy scipy cython ipython notebook matplotlib \
-   setuptools
-conda install -y \
-   nvidia/label/cuda-12.4.0::cuda-toolkit \
-   nvidia/label/cuda-12.4.0::cuda-nvcc
-# if need multiple gpu or cluster or no gpu, install mpi lib
-# conda install -y openmpi mpi4py
+# 确保防火墙放行（可加判断）
+if (-not (Get-NetFirewallRule -DisplayName "WSL2 SSH" -ErrorAction SilentlyContinue)) {
+    New-NetFirewallRule -DisplayName "WSL2 SSH" -Direction Inbound -Protocol TCP -LocalPort 2222 -Action Allow
+}
 
-
-# make file: ambertools24_src/build/run_cmake
-# replace part: # Assume this is Linux
-# this is for using ourself env to build amber (single GPU support, no mpi)
-  cmake $AMBER_PREFIX/amber24_src \
-    -DCMAKE_INSTALL_PREFIX=$AMBER_PREFIX/amber24 \
-    -DCOMPILER=GNU  \
-    -DMPI=FALSE \
-    -DCUDA=TRUE \
-    -DINSTALL_TESTS=TRUE \
-    -DDOWNLOAD_MINICONDA=FALSE -DUSE_CONDA_LIBS=TRUE \
-    -DCUDA_TOOLKIT_ROOT_DIR=$HOME/miniconda3/envs/amber24 \
-    -DPYTHON_INCLUDE_DIR=$(python3 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())")  \
-    -DPYTHON_LIBRARY=$(python3 -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_config_var('LIBDIR'))") \
-    2>&1 | tee  cmake.log
-
-
-# dir fir placing final files
-mkdir $HOME/amber24
-
-# cmake 
-cd amber24_src/build
-
-# if error, clean and then re-do cmake, this is very important
-./clean_build -y & ./run_cmake
-
-# check cmake log, if no error, proceed to compile
-# -j 24 multi cores need sudo permission 
-sudo make install -j 24
-
-
-# using boost compiler, will need add intermediate PATH
-export '$HOME/amber24_src/AmberTools/src/boost:$HOME/amber24_src/build/AmberTools/src/boost/stage/lib:$PATH'
-
-# check
-source $HOME/amber24/amber.sh
-sander --version
-pmemd.cuda --version
-
-
-# optional, add amber to path
-# add source $HOME/amber24/amber.sh to .bashrc
-
-# Q&A
-# if some library is missing, it may need to re=do ./run_cmake after installing missing packages
-# if compile can't find some packages but it indeed installed correctly, just copy to that build file directory 
-
-PATH=$PATH:/usr/include & export PATH
-
-
-
-
-
+Write-Host "✅ 已设置端口转发: Windows:2222 → WSL($wslIp):2222"

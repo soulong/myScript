@@ -8,250 +8,197 @@ rstudioapi::getActiveDocumentContext()$path |>
 library(tidyverse)
 library(GenomicAlignments)
 library(GenomicRanges)
+library(GenomeInfoDb)
 library(furrr)
+library(ChIPseeker)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+options(future.globals.maxSize = 2 * 1024 * 1024^2) # 2 GB
 
 
-if(F) {
-  c("HUVEC_5mM","IMR_0.5mM","MEF_5mM")
-  setwd("HUVEC_5mM")
-  setwd("..")
-  getwd()
-}
+setwd("C:\\Users\\haohe\\Desktop\\J009")
 
 
-#### define input data -------------------------------
-# bam and peak files were co-coordinated in order
-peak_files <- list.files(".", pattern=".narrowPeak$", full.names=F, recursive=F)
+## define input -------------------------------
+peak_files <- list.files("04_peaks", pattern="broadPeak$", full.names=T, recursive=F)
 print(peak_files)
+df <- tibble(
+  peak_file=peak_files,
+  sample=map_chr(peak_files, basename) %>% 
+    str_replace_all("_peaks.*Peak$",""),
+  bam_file=str_c("03_alignment/", sample, ".filtered.bam"),
+) %>% print()
 
-bam_files <- list.files(".", pattern=".bam$", full.names=F, recursive=F)
-print(bam_files)
 
-sample_names <- map_chr(peak_files, basename)
+## consensus peak -------------------------------
+consensus <- rtracklayer::import("04_peaks/consensus.bed")
+# consensus_annno <- ChIPseeker::annotatePeak(
+#   consensus, 
+#   tssRegion = c(-3000, 3000),
+#   TxDb = TxDb.Hsapiens.UCSC.hg38.knownGene,
+#   level = "gene")
+# consensus <- consensus_annno@anno
+consensus <- keepStandardChromosomes(
+  consensus, pruning.mode="coarse")
+
+
+## gene/tss -------------------------------
+genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene) %>% 
+  keepStandardChromosomes(pruning.mode="coarse") %>% 
+  sort() %>% print()
+
+# used in following functions
+genes_reduced <- genes %>% 
+  resize(width=width(genes) + 2000, fix="center") %>% 
+  reduce() #%>% print()
+tss_reduced <- promoters(genes, 1000, 1000) %>% 
+  reduce() #%>% print()
 
 
 
-#### read bam and peak once -------------------------------
-# collect result [list of vector]
-stats <- list()
 
-for(idx in seq_along(bam_files)) {
-  # idx = 1
+
+compute_region <- function(gr, g=genes_reduced, t=tss_reduced) {
+  in_gene <- subsetByOverlaps(gr, g, ignore.strand=FALSE) %>% 
+    reduce() #%>% print()
+  flank_gene <- c(
+    flank(in_gene, width=10000, start=T, both=F),
+    flank(in_gene, width=10000, start=F, both=F)
+  ) %>% reduce()# %>% print()
+
+  in_tss <- subsetByOverlaps(gr, t, ignore.strand=FALSE) %>% 
+    reduce() #%>% print()
+  flank_tss <- c(
+    flank(in_tss, width=3000, start=T, both=F),
+    flank(in_tss, width=3000, start=F, both=F)
+  ) %>% reduce() #%>% print()
   
-  # read the BED file
-  # MACS2 bed is not standard bed format
-  # use narrowPeak format instead if using rtracklayer import
-  # bed <- rtracklayer::import(peak_files[idx])
-  bed <- ChIPseeker::readPeakFile(peak_files[idx])
-  
-  # read the BAM file
-  bam <- GenomicAlignments::readGAlignments(bam_files[idx])
-  
-  # count reads within genomic ranges
-  reads_within_ranges <- GenomicRanges::countOverlaps(bam, bed, ignore.strand=T)
-  # get sum of within peak reads
-  reads_within_ranges <- sum(reads_within_ranges)
-  
-  # calculate total reads in the BAM file
-  total_reads <- length(bam)
-  
-  # calculate reads outside of ranges
-  reads_outside_ranges <- total_reads - reads_within_ranges
-  
-  # return result
-  stats <- c(stats, list(c(within=reads_within_ranges, outside=reads_outside_ranges)))
-  
-  # print
-  cat("Process sample:", sample_names[idx])
-  cat("Reads within genomic ranges:", reads_within_ranges, "\n")
-  cat("Reads outside of genomic ranges:", reads_outside_ranges, "\n")
-  cat("within / outside:", round(100*(reads_within_ranges/reads_outside_ranges), 2), "%\n\n")
-  
+  return(list(in_gene, flank_gene, in_tss, flank_tss) %>% 
+           set_names(nm=c("in_gene", "flank_gene", "in_tss", "flank_tss")))
 }
 
+do_sampling <- function(peak, peak_name="peak", sample_size=1000) {
+  peak_sampled <- sample(consensus, size=sample_size, replace=F)
+  peak_regions <- compute_region(peak_sampled)
+  names(peak_regions) <- str_c(peak_name,"_", names(peak_regions))
+  peak_regions[[peak_name]] <- peak_sampled
+  return(peak_regions)
+}
+# do_sampling(consensus, "consensus")
 
-
-
-#### boostrap sampling -------------------------------
-
-# use sampling to generate distribution
-
-# single core
-count_reads_with_sampling <- function(bam_file, 
-                                      range_file,
-                                      num_iterations = 100,
-                                      sample_ratio = 0.5) {
-  # read the bed file
-  range_gr <- ChIPseeker::readPeakFile(range_file)
+get_stats <- function(bam_path, 
+                      peak_path, 
+                      g=genes_reduced,
+                      t=tss_reduced,
+                      consens=consensus,
+                      sample_rep=NULL, 
+                      sample_size=1000) {
   
-  # read the bam file
-  bam <- GenomicAlignments::readGAlignments(bam_file)
-
-  # calculate sample size
-  sample_size <- round(sample_ratio*length(bam), 0)
+  # bam_path <- df$bam_file[1]
+  bam_gr <- GenomicAlignments::readGAlignmentPairs(bam_path) %>% 
+    granges()
   
+  if(sample_size <= 1) sample_size <- floor(length(bam_gr)*sample_size)
+  if(sample_size > length(bam_gr)) sample_size <- length(sample_size)
   
-  # using progress bar
-  pb <- progress::progress_bar$new(total=num_iterations, 
-                                   format="iteraction: [:bar] :percent in :elapsed",
-                                   width=60)
+  # peak_path <- df$peak_file[1]
+  peak <- rtracklayer::import(peak_path) %>% reduce()
   
-  # initialize vector to store results for each iteration
-  inside_counts <- numeric(num_iterations)
-  outside_counts <- numeric(num_iterations)
-  
-  for(iteration in seq_len(num_iterations)) {
-    # update progress bar
-    pb$tick()
-    
-    # Generate random indices for sampling with replacement
-    sample_indices <- sample(seq_along(bam), size = sample_size, replace = TRUE)
-    # Subset the BAM file with sampled indices
-    sampled_bam <- bam[sample_indices]
-    
-    # count reads within genomic ranges
-    reads_within_ranges_sampled <- countOverlaps(sampled_bam, range_gr)
-    
-    # store the result for this iteration
-    inside_counts[iteration] <- sum(reads_within_ranges_sampled)
-    outside_counts[iteration] <- length(sampled_bam) - sum(reads_within_ranges_sampled)
+  # set rep
+  if(is.null(sample_rep)) {
+    sample_rep <- 1
+    sample_size <- length(bam_gr)
   }
   
-  result <- tibble(inside_counts=inside_counts, outside_counts=outside_counts)
-  
-  return(result)
-}
-
-
-# multiple cores
-count_reads_with_sampling_mc <- function(bam_file, 
-                                         range_file,
-                                         num_iterations = 100,
-                                         sample_ratio = 0.5) {
-  # read the bed file
-  range_gr <- ChIPseeker::readPeakFile(range_file)
-  
-  # read the bam file
-  bam <- GenomicAlignments::readGAlignments(bam_file)
-
-  # calculate sample size
-  sample_size <- round(sample_ratio*length(bam), 0)
-  
-  
-  # define single core function
-  func <- function(iteraction, bam, range_gr, size) {
-    # Generate random indices for sampling with replacement
-    sample_indices <- sample(seq_along(bam), size = size, replace = TRUE)
-    # Subset the BAM file with sampled indices
-    sampled_bam <- bam[sample_indices]
+  # run here
+  res <- list()
+  for(i in seq_len(sample_rep)) {
+    gene_sampled=sample(g, sample_size, replace=F)
+    tss_sampled=sample(t, sample_size, replace=F)
+    regions <- c(gene=list(gene_sampled), 
+                 tss=list(tss_sampled),
+                 gene_flank=c(
+                   flank(gene_sampled, width=10000, start=T, both=F),
+                   flank(gene_sampled, width=10000, start=F, both=F)
+                 ) %>% reduce() %>% list(),
+                 tss_flank=c(
+                   flank(tss_sampled, width=3000, start=T, both=F),
+                   flank(tss_sampled, width=3000, start=F, both=F)
+                 ) %>% reduce() %>% list() )
+    if(!is.null(peak_path)) regions <- c(regions, do_sampling(peak, "peak", sample_size))
+    if(!is.null(consens)) regions <- c(regions, do_sampling(consens, "consensus", sample_size))
+    # print(regions)
     
-    # count reads within genomic ranges
-    reads_within_ranges_sampled <- countOverlaps(sampled_bam, range_gr)
-
-    # return res
-    tibble(inside_counts = sum(reads_within_ranges_sampled), 
-           outside_counts = length(sampled_bam) - sum(reads_within_ranges_sampled))
+    gr_counts <- map_int(
+      regions, \(x) countOverlaps(bam_gr, x, ignore.strand=T) %>% sum()) %>% 
+      enframe() %>% 
+      pivot_wider()
+    
+    gr_counts_list <- list(gr_counts) %>% set_names(i)
+    
+    res <- c(res, gr_counts_list)
   }
   
+  data <- list_rbind(res, names_to="rep") %>% 
+    mutate(total=length(bam_gr), .before=1)
   
-  # using multiple cores
-  result_list <- future_map(seq_len(num_iterations), 
-                            ~ func(.x, bam, range_gr, sample_size),
-                            .options = furrr_options(seed=T),
-                            .progress = T)
-  
-  # to tibble
-  result <- bind_rows(result_list)
-  
-  return(result)
+  return(data)
 }
 
 
 
-# run here
+# df2 <- df[c(1,3),]
+df2 <- df
 
-# for multiple cores
-plan(multisession, workers=(parallelly::availableCores()-2))
-# plan(sequential)
-plan()
-
-# collect all sample results [list of tibble]
-stats_bs <- list()
-
-for(idx in seq_along(bam_files)) {
-  cat(">>>> index on:", idx, "\n")
-  
-  res <- count_reads_with_sampling_mc(bam_files[idx],
-                                      peak_files[idx],
-                                      num_iterations = 200,
-                                      sample_ratio = 0.25)
-  stats_bs[[sample_names[idx]]] <- res
-}
+stats <- map2(df2$bam_file, df2$peak_file, 
+              \(x, y) get_stats(x, y, genes_reduced, tss_reduced, 
+                                consensus, sample_rep=100, sample_size=1000)) %>% 
+  set_names(nm=df2$sample)
 
 
-# to tidy
-stats_bs <- stats_bs %>%
-  bind_rows(.id="sample") %>%
-  mutate(inout_ratio = inside_counts / outside_counts)
-# save
-write_csv(stats_bs, str_glue("{Sys.Date()}_for_bs.csv"))
+stats_tidy <- stats %>% 
+  list_rbind(names_to="sample") %>% #glimpse()
+  # dplyr::rename(gene_flank=genes_flank) %>% 
+  mutate(peak_of_total=peak/total,
+         consensus_of_total=consensus/total,
+         gene_of_total=gene/total,
+         tss_of_total=tss/total,
+         gene_in_of_flank=gene/gene_flank,
+         tss_in_of_flank=tss/tss_flank,
+         consensus_gene_in_of_flank=consensus_in_gene/consensus_flank_gene,
+         consensus_tss_in_of_flank=consensus_in_tss/consensus_flank_tss,
+         peak_in_of_flank=peak_in_gene/peak_flank_gene,
+         peak_tss_in_of_flank=peak_in_tss/peak_flank_tss
+  ) %>% 
+  # view()
+  glimpse()
+
+stats_tidy %>% 
+  reframe(across(everything(), mean), .by=sample) %>%
+  view()
+writexl::write_xlsx(stats_tidy, str_glue("stats_tidy.xlsx"))
+
+
+
+df <- read_csv("D:\\LGLab\\Others\\to_huang\\frap\\frap.csv") %>% 
+  janitor::clean_names()
+df1 <- df %>% 
+  pivot_longer(!axis_s) %>% 
+  separate_wider_delim(name, delim="_roi_", names=c("channel","roi")) %>% 
+  reframe(axis_s=axis_s, value=value, ratio=value/max(value), .by=roi) %>% 
+  filter(axis_s <= 60)
+
+df1 %>% 
+  ggplot(aes(axis_s, ratio)) +
+  # stat_summary(geom="ribbon", size=0.1, linewidth=0.25, fill="grey80") +
+  stat_summary(geom="pointrange", size=0.1, linewidth=0.25, color="steelblue") +
+  stat_summary(geom="line", linewidth=0.5, color="steelblue") +
+  # geom_line() +
+  labs(x="Time (s)", y="Recovery Ratio") +
+  theme_bw()
+ggsave("frap2.pdf", width=3, height=2)
+writexl::write_xlsx(df1, "frap.xlsx")
 
 
 
 
-#### plot result -------------------------------
 
-# by count ratio
-stats_bs %>%
-  # bind_rows(.id="sample") %>%
-  # mutate(inout_ratio = inside_counts / outside_counts) %T>%
-  # write_csv(str_glue("{Sys.Date()}_data_for_bs.csv")) %>%
-  ggplot(aes(sample, inout_ratio, color=sample)) +
-  # geom_jitter() +
-  # geom_boxplot() +
-  geom_violin(linewidth=0.7, width=0.5, show.legend=F) +
-  labs(x="", y="Ratio of reads inside and outside of peaks") +
-  # coord_cartesian(ylim=c(0.075, 0.105)) +
-  theme_bw(12)
-# save plot
-cowplot::ggsave2(str_glue("{Sys.Date()}_for_bs.pdf"), 
-                 width=5, height=5)
- 
-
-
-# by count ratio normalized by genomic length
-# calculate peak length first
-inside_peak_length <- peak_files %>%
-  map(~ ChIPseeker::readPeakFile(.x) %>%
-        GenomicRanges::reduce() %>%
-        IRanges::width() %>%
-        sum() %>%
-        tibble(inside_peak_length=.)) %>%
-  set_names(sample_names)
-# hg38_legnth =  3096346000
-peak_length <- bind_rows(inside_peak_length, .id="sample") %>%
-  mutate(outside_peak_length = 3096346000 - inside_peak_length)
-  
-# range_gr <- ChIPseeker::readPeakFile(range_file)
-
-
-# calculate normalized coverage
-stats_bs %>%
-#   bind_rows(.id="sample") %>%
-#   mutate(inout_ratio = inside_counts / outside_counts) %>%
-  # stats_bs %>%
-  left_join(peak_length) %>%
-    mutate(inside_counts_norm = inside_counts / inside_peak_length,
-           outside_counts_norm = outside_counts / outside_peak_length,
-           inout_norm_ratio = inside_counts_norm / outside_counts_norm) %T>%
-  write_csv(str_glue("{Sys.Date()}_for_bs_norm.csv")) %>%
-  ggplot(aes(sample, inout_norm_ratio, color=sample)) +
-  # geom_jitter() +
-  # geom_boxplot() +
-  geom_violin(linewidth=0.7, width=0.5, show.legend=F) +
-  labs(x="", y="Ratio of normalized inside and outside peak coverage") +
-  # coord_cartesian(ylim=c(0.2, 0.4)) +
-  theme_bw(12)
-# save plot
-cowplot::ggsave2(str_glue("{Sys.Date()}_for_bs_norm.pdf"), 
-                 width=5, height=5)

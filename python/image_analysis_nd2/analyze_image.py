@@ -1,17 +1,15 @@
 #%% import
 # env: pytorch
 import os, sys, warnings
-sys.path.append('/home/hao/Documents/GitHub/myScript/python/image_analysis')
+sys.path.append('../image_analysis_nd2')
 warnings.filterwarnings('ignore')
 from image_helper import (
-    nd2_to_tiff, images_to_dataset, cellpose_segment_dataset, 
-    ilastik_multiple, spot_segment_dataset, 
-    measure_dataset, measure_dataset_by_model,
-    radial_distribution, granularity, crop_cell_from_dir)
+    images_to_dataset, 
+    measure_dataset)
 
 #%% data_dir
 data_dir = """
-/media/hao/Data/Project_ZM_translocation_reporter/20240924 ZM translocation Casp3+TEV reporter
+/mnt/d/LGLab/Project_NMN/DAPI_analysis
 """
 data_dir = data_dir.strip()
 

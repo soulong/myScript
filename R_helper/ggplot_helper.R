@@ -78,7 +78,7 @@ rotate_labels <- function(
 
 my_theme <- function(angle=45,
                      fontsize = 7, 
-                     family = NULL, 
+                     family = "sans", 
                      face = NULL, 
                      color = "black",
                      legend_size = 4,
@@ -104,7 +104,7 @@ my_theme <- function(angle=45,
     ggplot2::theme(
       text = ggplot2::element_text(size = fontsize, family = family, face = face, color = color),
       plot.title = ggplot2::element_text(hjust = 0.5, vjust = 0.5),
-      plot.subtitle = ggplot2::element_text(fontsize/2, hjust = 0.5, vjust = 0.5),
+      plot.subtitle = ggplot2::element_text(size = fontsize/2, hjust = 0.5, vjust = 0.5),
       plot.margin = ggplot2::unit(c(0.5, 0.5, 0.5, 0.5), unit),
       plot.background = ggplot2::element_rect(fill = NA, colour = NA),
       panel.background = ggplot2::element_rect(fill = NA, colour = NA),

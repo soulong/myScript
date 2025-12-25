@@ -22,7 +22,7 @@ library(writexl)
 # load function
 c("read_plateReader.R", 
   "read_plate_info.R") %>% 
-  file.path("/home/hao/Documents/GitHub/myScript/R_functions", .) %>% 
+  file.path("/mnt/f/GitHub/myScript/R_helper", .) %>% 
   walk(source)
 ```
 

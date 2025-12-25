@@ -1,0 +1,13 @@
+sample,group,control,fq1,fq2
+MEF0_1,MEF0,,01.RawData/MEF0_1/MEF0_1_1.fq.gz,01.RawData/MEF0_1/MEF0_1_2.fq.gz
+MEF0_2,MEF1,,01.RawData/MEF0_2/MEF0_2_1.fq.gz,01.RawData/MEF0_2/MEF0_2_2.fq.gz
+MEF0_3,MEF2,,01.RawData/MEF0_3/MEF0_3_1.fq.gz,01.RawData/MEF0_3/MEF0_3_2.fq.gz
+MEF05_1,MEF05,,01.RawData/MEF5_1/MEF5_1_1.fq.gz,01.RawData/MEF5_1/MEF5_1_2.fq.gz
+MEF05_2,MEF06,,01.RawData/MEF5_2/MEF5_2_1.fq.gz,01.RawData/MEF5_2/MEF5_2_2.fq.gz
+MEF05_3,MEF07,,01.RawData/MEF5_3/MEF5_3_1.fq.gz,01.RawData/MEF5_3/MEF5_3_2.fq.gz
+MEF1_1,MEF1,,01.RawData/MEF1_1/MEF1_1_1.fq.gz,01.RawData/MEF1_1/MEF1_1_2.fq.gz
+MEF1_2,MEF2,,01.RawData/MEF1_2/MEF1_2_1.fq.gz,01.RawData/MEF1_2/MEF1_2_2.fq.gz
+MEF1_3,MEF3,,01.RawData/MEF1_3/MEF1_3_1.fq.gz,01.RawData/MEF1_3/MEF1_3_2.fq.gz
+MEF25_1,MEF25,,01.RawData/MEF25_1/MEF25_1_1.fq.gz,01.RawData/MEF25_1/MEF25_1_2.fq.gz
+MEF25_2,MEF26,,01.RawData/MEF25_2/MEF25_2_1.fq.gz,01.RawData/MEF25_2/MEF25_2_2.fq.gz
+MEF25_3,MEF27,,01.RawData/MEF25_3/MEF25_3_1.fq.gz,01.RawData/MEF25_3/MEF25_3_2.fq.gz
