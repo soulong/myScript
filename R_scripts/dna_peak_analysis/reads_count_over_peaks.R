@@ -13,9 +13,9 @@ library(furrr)
 library(ChIPseeker)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 options(future.globals.maxSize = 2 * 1024 * 1024^2) # 2 GB
+BiocManager::install("ChIPseeker")
 
-
-setwd("C:\\Users\\haohe\\Desktop\\J009")
+setwd("/mnt/f/workspace/IMR/result/")
 
 
 ## define input -------------------------------
@@ -197,6 +197,22 @@ df1 %>%
   theme_bw()
 ggsave("frap2.pdf", width=3, height=2)
 writexl::write_xlsx(df1, "frap.xlsx")
+
+
+
+
+# plot
+
+data <- readxl::read_excel("2025-12-23_stats_tidy.xlsx") %>% 
+  glimpse()
+
+
+
+
+
+
+
+
 
 
 

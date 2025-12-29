@@ -1,5 +1,5 @@
 # ========== 日志配置 ==========
-$logPath = "F:\wsl-ssh-proxy.log"
+$logPath = "F:\wsl_proxy.log"
 
 function Write-Log {
     param([string]$Message)
@@ -9,7 +9,11 @@ function Write-Log {
 
 # ========== 启动 WSL ==========
 Write-Log "Try Start WSL..."
-Start-Process -FilePath "wsl" -ArgumentList "-d Ubuntu-24.04", "sleep", "infinity" -WindowStyle Hidden
+# Start-Process -FilePath "wsl" -ArgumentList "-d Ubuntu-24.04", "sleep", "infinity" -WindowStyle Hidden
+Start-Process -FilePath "wsl" `
+    -ArgumentList "-d Ubuntu-24.04", "-u root", "--", "service ssh start && service rstudio-server start" `
+    -WindowStyle Hidden
+
 
 # ========== 等待并获取 IP ==========
 $wslIp = ""
@@ -31,18 +35,23 @@ Write-Log "WSL IP: $wslIp"
 
 # 删除旧规则
 netsh interface portproxy delete v4tov4 listenport=2222 listenaddress=0.0.0.0 > $null 2>&1
+netsh interface portproxy delete v4tov4 listenport=8787 listenaddress=0.0.0.0 > $null 2>&1
 
 # 添加新规则
 netsh interface portproxy add v4tov4 listenport=2222 listenaddress=0.0.0.0 connectport=2222 connectaddress=$wslIp
+netsh interface portproxy add v4tov4 listenport=8787 listenaddress=0.0.0.0 connectport=8787 connectaddress=$wslIp
+
 
 # 防火墙
 $rule = Get-NetFirewallRule -DisplayName "WSL2 SSH" -ErrorAction SilentlyContinue
 if (-not $rule) {
     New-NetFirewallRule -DisplayName "WSL2 SSH" -Direction Inbound -Protocol TCP -LocalPort 2222 -Action Allow | Out-Null
+    New-NetFirewallRule -DisplayName "WSL2 R Studio Server" -Direction Inbound -Protocol TCP -LocalPort 8787 -Action Allow | Out-Null
     Write-Log "Create Firewall Rule 'WSL2 SSH'"
 }
 
-Write-Log "Set Port Forwarding: Windows:2222 → WSL($wslIp):2222"
+Write-Log "Set Port Forwarding: Windows:2222 -> WSL($wslIp):2222"
+Write-Log "Set Port Forwarding: Windows:8787 -> WSL($wslIp):8787"
 
 
 

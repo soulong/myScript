@@ -3,11 +3,11 @@
 ## ---------------------------------------
 conda activate cellpose
 ## script directory
-cd '/mnt/c/Users/haohe/Documents/GitHub/myScript/python/image_analysis'
+cd '/mnt/f/GitHub/myScript/python/image_analysis'
 ## setup
 # root_dir="/mnt/c/Users/haohe/Desktop/"
 # root_dir="/mnt/d/LGLab/Project_NMN/2025-12-22_H3K27me3_IF_analysis/20251222 old plate IMR90 NMN__2025-12-22T15_05_24-Measurement 1"
-root_dir="/mnt/d/LGLab/Project_NMN/2025-12-22_H3K27me3_IF_analysis"
+root_dir="/mnt/f/workspace/IF_H3K27me3_analysis"
 
 ## ---------------------------------------
 # optinal
@@ -19,7 +19,7 @@ python run_split_frame.py "$root_dir" --tile_width 4096 --tile_height 4096
 python image_helper.py "$root_dir" --dry_run
 
 # kwargs='{"remove_na_row":False,"image_subdir":"Images","subset_pattern":".*_z[123][13579]_ORG--t","image_suffix":".tif","image_extractor":"(?P<celltype>.*) (?P<treat>.*) SIR DNA_SIM²_z(?P<stack>.*)_ORG--t(?P<field>\\d+)_r\\d+c\\d+_?(?P<self_generated>.*)"}'
-kwargs='{"remove_na_row":True, "subset_pattern":".*p02-ch"}'
+kwargs='{"remove_na_row":True, "subset_pattern":".*p03-ch"}'
 # kwargs='{"remove_na_row":True, "image_extractor":"(?P<field>\\d+)-(?P<treat>\\d+)", "mask_extractor":"(?P<field>\\d+)-(?P<treat>\\d+)_cp_(?P<mask_name>.*)"}'
 python image_helper.py "$root_dir" --dry_run --dataset_kwargs "$kwargs"
 # IMR90 Control SIR DNA_SIM²_z01_ORG.tif
@@ -44,8 +44,7 @@ python image_helper.py $root_dir --cp_dataloder --dataset_kwargs "$kwargs" --ove
 # histogram
 # root_dir="/mnt/d/LGLab/Project_NMN/Raw_images_H3K27me3_IF_NMN/LH 20231107 IMR90 NMN treatment H3K27me3__2023-11-07T15_58_57-Measurement 1"
 python analyze_histogram.py "$root_dir" --min_intensity 150 --max_intensity 65535 --normalize mean --n_bins 50 --bin_method geomspace --db_name hist_150_65535_mean_50_geomspace.db --overwrite_db --dataset_kwargs "$kwargs"
-python analyze_histogram.py "$root_dir" --min_intensity 150 --max_intensity 20000 --normalize mean --n_bins 50 --bin_method linear --db_name hist_150_20000_mean_50_linear.db --overwrite_db --dataset_kwargs "$kwargs"
-python analyze_histogram.py "$root_dir" --min_intensity 150 --max_intensity 20000 --normalize mean --n_bins 50 --bin_method linear --db_name hist_150_20000_mean_50_linear.db --overwrite_db --dataset_kwargs "$kwargs"
+python analyze_histogram.py "$root_dir" --min_intensity 100 --max_intensity 6000 --normalize mean --n_bins 50 --bin_method geomspace --db_name hist_100_6000_mean_50_geomspace.db --overwrite_db --dataset_kwargs "$kwargs"
 
 
 

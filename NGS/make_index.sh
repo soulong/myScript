@@ -8,7 +8,7 @@ conda activate ngs
 # conda env create -f ngs.yml
 
 # set directory
-root_dir=/mnt/d/Index/hs/v49 \
+root_dir=/mnt/f/index/hs/v49 \
 	&& mkdir -p $root_dir \
 	&& cd $root_dir \
 	&& echo ">>>>>> start to processing <<<<<<<"
@@ -73,3 +73,9 @@ bowtie2-build --threads 8 $fasta_gz bowtie2/bowtie2
 # STAR --runThreadN 8 --runMode genomeGenerate --genomeDir star \
 # 	--genomeFastaFiles $fasta_gz --sjdbGTFfile $gtf_gz \
 # 	--sjdbOverhang 149 --limitGenomeGenerateRAM 40000000000 # ~ x/1024/1000/1000 GB
+
+
+#################################  T2T-CHM13  #################################
+# cd ~/Index/hs/chm13 && mkdir -p bowtie2
+# chm13_fa_file="chm13v2.0.fa.gz"
+# bowtie2-build --threads 8 $chm13_fa_file bowtie2/bowtie2

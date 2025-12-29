@@ -25,7 +25,7 @@ readonly NORM_METHOD="CPM"         # CPM | Spike | SpikeFree
 
 # Index paths (use absolute or relative; avoid ~ in scripts)
 # readonly INDEX_ROOTDIR="${HOME}/Index"
-readonly INDEX_ROOTDIR="/mnt/f/Index"
+readonly INDEX_ROOTDIR="/mnt/f/index"
 readonly HS_INDEX_DIR="$INDEX_ROOTDIR/hs/v49"
 readonly CHM13_INDEX_DIR="$INDEX_ROOTDIR/hs/chm13"
 readonly MM_INDEX_DIR="$INDEX_ROOTDIR/mm/vM38"

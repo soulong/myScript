@@ -295,10 +295,15 @@ def images_to_dataset(
     # to int if possible
     # # print(df["row"].dtype)
     
-    df = df.applymap(lambda x : pd.to_numeric(x, errors='ignore'))
-    # df = df.map(lambda x : pd.to_numeric(x, errors='ignore'))
-    # # print(df["row"].dtype)
+    # print(df)
+    for col in df.select_dtypes(include='object').columns:
+        try:
+            df[col] = pd.to_numeric(df[col], errors='raise')
+        except (ValueError, TypeError):
+            pass
+    # print(df["row"].dtype)
     # # print(df["directory"].dtype)
+    # print(df)
 
     # ------------------------------------------------------------------- #
     # Clean-up
