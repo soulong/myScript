@@ -5,7 +5,7 @@ set -euo pipefail
 readonly SPECIES="chm13"                # "hs", "chm13" or "mm"
 readonly SAMPLESHEET="samplesheet_CutTag.csv"
 readonly OUTDIR="result"
-readonly THREADS=12
+readonly THREADS=18
 readonly SORT_MEM_LIMIT="16G"        # sambamba sort MEM limit
 
 # Max insert length
@@ -13,14 +13,14 @@ readonly MAX_FRAG_LENGTH=1000
 
 # Peak calling config
 readonly CALL_PEAK=true             # MACS2
-readonly PEAK_TYPE="broad"           # "broad" or "narrow"
+readonly PEAK_TYPE="narrow"           # "broad" or "narrow"
 readonly RUN_FRIP=true
 
 # Spike-in
-readonly RUN_SPIKE=false
+readonly RUN_SPIKE=true
 
 # Normalization
-readonly NORM_METHOD="CPM"         # CPM | Spike | SpikeFree
+readonly NORM_METHOD="Spike"         # CPM | Spike | SpikeFree
 
 
 # Index paths (use absolute or relative; avoid ~ in scripts)
@@ -211,7 +211,7 @@ process_alignment() {
   if [[ ! -s "$markdup_bam" ]] || [[ ! -s "${markdup_bam}.bai" ]]; then
     log "[Alignment] $sample -> $INDEX_DIR"
     bowtie2 -x "$BOWTIE2_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" \
-      --local --very-sensitive --no-mixed --no-discordant -X "$MAX_FRAG_LENGTH" \
+      --very-sensitive --local --no-mixed --no-discordant -X "$MAX_FRAG_LENGTH" \
       --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
       2> "$ALIGNDIR/${sample}.bowtie2.log" \
       | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
@@ -237,7 +237,7 @@ process_alignment() {
     if [[ ! -s "$spike_markdup_bam" ]]; then
       log "[Spike-in Alignment] $sample -> $SPIKE_DIR"
       bowtie2 -x "$SPIKE_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" \
-        --local --very-sensitive --no-mixed --no-discordant -X "$MAX_FRAG_LENGTH" \
+        --very-sensitive --local --no-mixed --no-discordant -X "$MAX_FRAG_LENGTH" \
         --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
         2> "$ALIGNDIR/${sample}.spike.bowtie2.log" \
         | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
@@ -489,7 +489,7 @@ readonly STATS_CSV="$OUTDIR/statistics_${NORM_METHOD}.csv"
 if [[ ! -f "$STATS_CSV" ]]; then
   log "Initializing statistics CSV: $STATS_CSV"
   cat > "$STATS_CSV" <<EOF
-sample,group,control,fq1,fq2,total_reads,mapped_reads,duplicate_reads,filtered_reads,spike_reads,norm_method,scale_${NORM_METHOD},frip_consensus
+sample,group,control,fq1,fq2,total_reads,mapped_reads,duplicate_reads,filtered_reads,spike_reads,norm_method,scale_${NORM_METHOD}
 EOF
 fi
 
