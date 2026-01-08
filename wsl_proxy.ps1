@@ -15,7 +15,7 @@ Start-Process -FilePath "wsl" `
     -WindowStyle Hidden
 
 
-# ========== 等待并获取 IP ==========
+# ========== 等待并获�?IP ==========
 $wslIp = ""
 $retry = 0
 $maxRetries = 20
@@ -33,14 +33,14 @@ if ($wslIp -eq "") {
 
 Write-Log "WSL IP: $wslIp"
 
-# 删除旧规则
+# 删除旧规�?
 netsh interface portproxy delete v4tov4 listenport=2222 listenaddress=0.0.0.0 > $null 2>&1
 
-# 添加新规则
+# 添加新规�?
 netsh interface portproxy add v4tov4 listenport=2222 listenaddress=0.0.0.0 connectport=2222 connectaddress=$wslIp
 
 
-# 防火墙
+# 防火�?
 $rule = Get-NetFirewallRule -DisplayName "WSL2 SSH" -ErrorAction SilentlyContinue
 if (-not $rule) {
     New-NetFirewallRule -DisplayName "WSL2 SSH" -Direction Inbound -Protocol TCP -LocalPort 2222 -Action Allow | Out-Null
@@ -48,10 +48,11 @@ if (-not $rule) {
 }
 
 Write-Log "Set Port Forwarding: Windows:2222 -> WSL($wslIp):2222"
+Write-Log "-----------------------------------------------------"
 
 
 
-# # ========== 如何创立计划任务， 在PowerShell中以管理员运行 ==========
+# # ========== 如何创立计划任务�?在PowerShell中以管理员运�?==========
 # # 创建任务：系统启动后 30 秒运行（避免 WSL 服务未就绪）
 # $scriptPath = "F:\GitHub\myScript\wsl_ssh_proxy.ps1"
 # $taskName = "Start WSL SSH Proxy"

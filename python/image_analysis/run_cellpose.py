@@ -13,11 +13,15 @@ Cellpose‑SAM segmentation for multiple Measurement folders.
 * All arguments have sensible defaults and are displayed with ``--help``.
 """
 
+
 from __future__ import annotations
 
 import argparse
 import gc
 import logging
+logging.getLogger('cellpose').addHandler(logging.NullHandler())
+logging.getLogger('cellpose').propagate = False
+
 import re
 import sys
 from pathlib import Path
@@ -206,7 +210,7 @@ def cellpose_segment_measurement(
                 masks = rescale(masks, 1.0 / resize_factor, order=0).astype(np.uint16)
 
             if len(np.unique(masks)) <= 1:
-                logger.debug(f"No objects detected in {src_path.name}")
+                logger.warning(f"No objects detected in {src_path.name}")
                 continue
 
             cp_io.save_masks(
@@ -218,7 +222,7 @@ def cellpose_segment_measurement(
             )
 
         except torch.cuda.OutOfMemoryError:
-            logger.error(f"GPU OOM on {src_path.name} – skipping")
+            logger.error(f"GPU OOM on {src_path.name} - skipping")
             torch.cuda.empty_cache()
             success = False
         except Exception as e:
@@ -300,7 +304,7 @@ def main() -> None:
 
     # logging
     log_dir = root_dir / "logs"
-    logger = setup_logger(log_dir, name="cellpose")
+    logger = setup_logger(log_dir, name="segmentation")
     logger.info(f"Cellpose‑SAM started – root: {root_dir}")
     logger.info(
         f"Device: {device} | Model: {args.model} | Resize: {args.resize} | Normalization: {args.normalize}"

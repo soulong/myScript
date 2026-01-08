@@ -16,12 +16,11 @@ setwd("/mnt/f/workspace/IF_H3K27me3_analysis/")
 # use_db <- "hist_150_65535_mean_50_linear"
 
 for(use_db in c(#"hist_100_60000_quantile_50_logspace",
-                # "hist_100_6000_mean_50_geomspace",
-                # "hist_150_8000_mean_50_geomspace",
-                # "hist_150_8000_mean_50_linear",
-                # "hist_150_65535_mean_50_geomspace",
-                # "hist_200_6000_mean_50_geomspace",
-                "hist_100_6000_mean_50_geomspace")) {
+                "hist_100_6000_mean_50_geomspace",
+                "hist_150_8000_mean_50_geomspace",
+                "hist_150_8000_mean_50_linear",
+                "hist_150_65535_mean_50_geomspace",
+                "hist_200_6000_mean_50_geomspace")) {
   
   db_files <- list.files(".", pattern = ".db", recursive = TRUE, full.names = TRUE) %>%
     str_subset(use_db) %>%
@@ -177,10 +176,10 @@ for(use_db in c(#"hist_100_60000_quantile_50_logspace",
            theme_bw(8) +
            theme(panel.grid=element_blank())
     ) %>% 
-    patchwork::wrap_plots(ncol=3)
+    patchwork::wrap_plots(ncol=1)
   # print(p2)
   ggsave(str_glue("{Sys.Date()}_cdf_{use_db}.pdf"), 
-         p2, width=12, heigh=6)
+         p2, width=4, heigh=6)
   
   # statistics
   stats <- hist_filter %>% 
