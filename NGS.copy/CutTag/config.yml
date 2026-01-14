@@ -1,0 +1,76 @@
+# CUT&Tag Pipeline Configuration File
+# Place this file in your working directory (optional)
+# The pipeline will use default values if this file is not provided
+
+# ============================= Basic Settings =============================
+
+# Species: "hs" (human GRCh38), "chm13" (T2T-CHM13), or "mm" (mouse GRCm39)
+species: chm13
+
+# Sample sheet CSV file (must contain columns: sample,group,control,target,fq1,fq2)
+samplesheet: samplesheet.csv
+
+# Output directory for all results
+outdir: result
+
+# Number of threads for parallel processing
+threads: 18
+
+# Memory limit for sambamba sort (e.g., "16G", "32G")
+sort_mem_limit: 16G
+
+# Maximum fragment length for paired-end alignment
+max_frag_length: 1000
+
+# ============================= Analysis Options =============================
+
+# Peak calling with MACS3
+call_peak: true
+
+# Peak type: "narrow" for transcription factors, "broad" for histone marks
+peak_type: narrow
+
+# Calculate Fraction of Reads in Peaks (FRiP)
+run_frip: true
+
+# Perform spike-in normalization alignment
+run_spike: false
+
+# Normalization method: "CPM" (counts per million), "Spike" (spike-in), or "SpikeFree"
+norm_method: CPM
+
+# ============================= Index Paths =============================
+
+# Root directory containing genome indices
+# Modify this to match your system's index location
+index_rootdir: /mnt/f/index
+
+# Expected directory structure under index_rootdir:
+#   index_rootdir/
+#   ├── hs/v49/              # Human GRCh38
+#   │   ├── bowtie2/
+#   │   ├── GRCh38.primary_assembly.genome.fa.gz
+#   │   ├── genes.bed
+#   │   └── genes_protein_coding.bed
+#   ├── hs/chm13/            # Human T2T-CHM13
+#   │   ├── bowtie2/
+#   │   ├── chm13v2.0.fa.gz
+#   │   └── ...
+#   ├── mm/vM38/             # Mouse GRCm39
+#   │   ├── bowtie2/
+#   │   ├── GRCm39.primary_assembly.genome.fa.gz
+#   │   └── ...
+#   └── Ecoli_novoprotein/   # Spike-in genome
+#       └── bowtie2/
+
+# ============================= Advanced Options =============================
+
+# Spike-free normalization scale factor file (required if norm_method: SpikeFree)
+# spike_free_sf_file: result/03_alignment/SpikeFree_SF.txt
+
+# Custom BED regions for heatmap generation (one per line, will be added to defaults)
+# Format: bed_region: /path/to/file.bed
+# You can specify multiple regions:
+# bed_region: /path/to/enhancers.bed
+# bed_region: /path/to/promoters.bed
+# bed_region: /path/to/custom_peaks.bed

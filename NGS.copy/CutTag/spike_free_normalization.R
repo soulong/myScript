@@ -2,17 +2,18 @@
 # devtools::install_github("stjude/ChIPseqSpikeInFree")
 library(ChIPseqSpikeInFree)
 library(tidyverse)
-library(yaml)
 
-rstudioapi::getActiveDocument()$path |> 
-  dirname() |> setwd()
 
-config <- "config.yaml" %>% read_yaml()
-gsize_file <- config$index_rootdir %>% 
-  file.path('hs/chm13/chm13v2.0.fa.gz.fai')
+# bam_dir <- "F:/workspace/IMR/result/03_alignment"
+bam_dir <- "F:/workspace/MEF/result/03_alignment"
 
-sample_info <- "../../samplesheet.csv" %>% 
-  read_csv() %>% #glimpse()
+# gsize_file <- "F:/software/R_scripts/GRCh38.primary_assembly.genome.fa.fai" # hs
+gsize_file <- "F:/software/R_scripts/GRCm39.primary_assembly.genome.fa.fai" # mm
+
+
+setwd(bam_dir)
+sample_sheet <- "../../samplesheet_CutTag.csv"
+sample_info <- read_csv(sample_sheet) %>% #glimpse()
   mutate(ID=str_c(sample, ".filtered.bam")) %>% 
   glimpse()
 
@@ -20,10 +21,6 @@ save_prefix="SpikeFree"
 meta_file <- str_c(save_prefix, "_metaFile.txt")
 tibble(ID=sample_info$ID, ANTIBODY="H3K27me3", GROUP=sample_info$group) %>% 
   write_tsv(meta_file)
-
-
-# data will saved to bam directory
-setwd("result/03_bam")
 
 # run
 ChIPseqSpikeInFree(bamFiles=sample_info$ID, 

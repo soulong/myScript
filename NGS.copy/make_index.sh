@@ -12,11 +12,10 @@ root_dir=/mnt/d/Index/hs/chm13 \
 	&& mkdir -p $root_dir && cd $root_dir \
 	&& echo ">>>>>> start to processing <<<<<<<"
 
-
 ## link can be remote download link or local file
 # t2t-chm13
 fasta_link="chm13v2.0.fa.gz"
-gtf_link="chm13v2.0.gtf.gz"
+gtf_link="chm13.draft_v2.0.gene_annotation.gff3.gz"
 
 # # hs
 # fasta_link=https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_49/GRCh38.primary_assembly.genome.fa.gz
@@ -93,5 +92,6 @@ mkdir -p star
 STAR --runThreadN 8 --runMode genomeGenerate --genomeDir star \
 	--genomeFastaFiles "${fasta_gz%.gz}" --sjdbGTFfile "${gtf_gz%.gz}" \
 	--sjdbOverhang 149 --limitGenomeGenerateRAM 24000000000 # ~ x/1024/1000/1000 GB
-# remove unused files
-if [ $? -eq 0 ]; then rm ${fasta_gz%.gz} ${fasta_gz%.gz}.fai ${gtf_gz%.gz}; fi
+	
+# # remove unused files
+# if [ $? -eq 0 ]; then rm ${fasta_gz%.gz} ${fasta_gz%.gz}.fai ${gtf_gz%.gz}; fi

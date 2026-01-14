@@ -1,0 +1,16 @@
+sample,group,control,target,fq1,fq2
+293TD-1_L1,,,,01.RawData/293TD-1_L1_1.fq.gz,01.RawData/293TD-1_L1_2.fq.gz
+293TD-2_L1,,,,01.RawData/293TD-2_L1_1.fq.gz,01.RawData/293TD-2_L1_2.fq.gz
+293TD-3_L1,,,,01.RawData/293TD-3_L1_1.fq.gz,01.RawData/293TD-3_L1_2.fq.gz
+293TP-1_L1,,,,01.RawData/293TP-1_L1_1.fq.gz,01.RawData/293TP-1_L1_2.fq.gz
+293TP-2_L1,,,,01.RawData/293TP-2_L1_1.fq.gz,01.RawData/293TP-2_L1_2.fq.gz
+293TP-3_L1,,,,01.RawData/293TP-3_L1_1.fq.gz,01.RawData/293TP-3_L1_2.fq.gz
+293TT-1_L1,,,,01.RawData/293TT-1_L1_1.fq.gz,01.RawData/293TT-1_L1_2.fq.gz
+293TT-2_L1,,,,01.RawData/293TT-2_L1_1.fq.gz,01.RawData/293TT-2_L1_2.fq.gz
+293TT-3_L1,,,,01.RawData/293TT-3_L1_1.fq.gz,01.RawData/293TT-3_L1_2.fq.gz
+H526DMSO-1_L1,,,,01.RawData/H526DMSO-1_L1_1.fq.gz,01.RawData/H526DMSO-1_L1_2.fq.gz
+H526DMSO-2_L1,,,,01.RawData/H526DMSO-2_L1_1.fq.gz,01.RawData/H526DMSO-2_L1_2.fq.gz
+H526DMSO-3_L1,,,,01.RawData/H526DMSO-3_L1_1.fq.gz,01.RawData/H526DMSO-3_L1_2.fq.gz
+H526P62-1_L1,,,,01.RawData/H526P62-1_L1_1.fq.gz,01.RawData/H526P62-1_L1_2.fq.gz
+H526P62-2_L1,,,,01.RawData/H526P62-2_L1_1.fq.gz,01.RawData/H526P62-2_L1_2.fq.gz
+H526P62-3_L1,,,,01.RawData/H526P62-3_L1_1.fq.gz,01.RawData/H526P62-3_L1_2.fq.gz

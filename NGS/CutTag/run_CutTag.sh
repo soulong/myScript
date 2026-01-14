@@ -1,519 +1,642 @@
 #!/usr/bin/env bash
+# CUT&Tag Analysis Pipeline
+# Author: Hao He
+# Usage: run_cuttag.sh config.yml
+
 set -euo pipefail
 
-# ============================= Global Configuration =============================
-readonly SPECIES="chm13"                # "hs", "chm13" or "mm"
-readonly SAMPLESHEET="samplesheet_CutTag.csv"
-readonly OUTDIR="result"
-readonly THREADS=18
-readonly SORT_MEM_LIMIT="16G"        # sambamba sort MEM limit
-
-# Max insert length
-readonly MAX_FRAG_LENGTH=1000
-
-# Peak calling config
-readonly CALL_PEAK=true             # MACS2
-readonly PEAK_TYPE="narrow"           # "broad" or "narrow"
-readonly RUN_FRIP=true
-
-# Spike-in
-readonly RUN_SPIKE=true
-
-# Normalization
-readonly NORM_METHOD="Spike"         # CPM | Spike | SpikeFree
-
-
-# Index paths (use absolute or relative; avoid ~ in scripts)
-# readonly INDEX_ROOTDIR="${HOME}/Index"
-readonly INDEX_ROOTDIR="/mnt/f/index"
-readonly HS_INDEX_DIR="$INDEX_ROOTDIR/hs/v49"
-readonly CHM13_INDEX_DIR="$INDEX_ROOTDIR/hs/chm13"
-readonly MM_INDEX_DIR="$INDEX_ROOTDIR/mm/vM38"
-readonly SPIKE_DIR="$INDEX_ROOTDIR/Ecoli_novoprotein"
-
-# Output subdirs
-readonly FASTQCDIR="$OUTDIR/01_fastqc"
-readonly TRIMDIR="$OUTDIR/02_fastp"
-readonly ALIGNDIR="$OUTDIR/03_alignment"
-readonly PEAKDIR="$OUTDIR/04_peaks"
-readonly QCDIR="$OUTDIR/05_multiqc"
-
-# Spike-free scale factor file (must exist if NORM_METHOD=SpikeFree)
-readonly SPIKE_FREE_SF_FILE="$ALIGNDIR/SpikeFree_SF.txt"
-
-# Genome setup
-case "$SPECIES" in
-  chm13)
-    readonly INDEX_DIR="$CHM13_INDEX_DIR"
-    readonly GSIZE=2913022398
-    readonly FA_NAME="chm13v2.0.fa.gz"
-    ;;
-  hs)
-    readonly INDEX_DIR="$HS_INDEX_DIR"
-    readonly GSIZE=2913022398
-    readonly FA_NAME="GRCh38.primary_assembly.genome.fa.gz"
-    ;;
-  mm)
-    readonly INDEX_DIR="$MM_INDEX_DIR"
-    readonly GSIZE=2654621783
-    readonly FA_NAME="GRCm39.primary_assembly.genome.fa.gz"
-    ;;
-  *)
-    echo "ERROR: SPECIES must be 'hs' 'chm13' 'mm'"
+# Fail fast if no config provided
+if [[ ${#@} -lt 1 ]]; then
+    echo "Usage: $0 config.yml" >&2
     exit 1
-    ;;
-esac
-
-readonly BOWTIE2_INDEX="$INDEX_DIR/bowtie2/bowtie2"
-readonly SPIKE_INDEX="$SPIKE_DIR/bowtie2/bowtie2"
-readonly FASTA="$INDEX_DIR/$FA_NAME"
-
-readonly CHROM_SIZES="${FASTA%.gz}.fai"
-# Create .fai if missing (samtools faidx requires uncompressed FASTA)
-if [[ ! -f "$CHROM_SIZES" ]]; then
-  echo "Creating chromosome sizes file: $CHROM_SIZES"
-  tmp_fa="${FASTA%.gz}"
-  gzip -d -k "$FASTA" && samtools faidx "$tmp_fa" && rm -f "$tmp_fa"
 fi
-
-# Pre-defined BED regions for heatmaps
-BED_REGIONS=(
-  "$INDEX_DIR/genes.bed"
-  "$INDEX_DIR/genes_protein_coding.bed"
-  # "$INDEX_DIR/genes_lncRNA.bed"
-)
-
 
 # ============================= Helper Functions =============================
-log()   { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2; }
-die()   { echo "ERROR: $*"; exit 1; }
-require_file() { [[ -s "$1" ]] || die "Missing/empty required file: $1"; }
+# Get script directory (works with symlinks)
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# Safely read samplesheet (skip header, handle DOS line endings)
-safe_loop() {
-  local file="$1"; shift
-  require_file "$file"
-  while IFS=, read -r sample group control fq1 fq2 || [[ -n "${sample:-}" ]]; do
-    [[ "$sample" == "sample" ]] && continue
-    [[ -z "$sample" ]] && continue
-    "$@" "$sample" "$group" "$control" "$fq1" "$fq2"
-  done < <(tail -n +2 "$file" | tr -d '\r')
-}
+# Helper functions are located in the parent directory
+HELPER_SCRIPT="${SCRIPT_DIR}/../helper.sh"
+if [[ ! -f "$HELPER_SCRIPT" ]]; then
+    echo "ERROR: Helper script not found: $HELPER_SCRIPT" >&2
+    exit 1
+fi
+source "$HELPER_SCRIPT"
 
-# Extract value from samtools flagstat output
-get_flagstat_value() {
-  local file="$1" pattern="$2" col="${3:-1}"
-  awk -v p="$pattern" -v c="$col" '
-    $0 ~ p { print $c; exit }
-  ' "$file"
-}
-
-merge_consensus_peak() {
-    # Merge all individual peak files into one consensus BED (union of all peaks)
-    # Options:
-    #   -p <glob>   Input peak files pattern (default: *_peaks.*Peak)
-    #   -o <bed file> Output file (default: consensus_peaks.bed)
-    #   -G <file>   Genome chrom.sizes file (required for proper sorting)
-
-    local peak_glob="*_peaks.*Peak"
-    local outfile="consensus_peaks.bed"
-    local genome=""
-
-    while getopts "p:o:G:" opt; do
-        case $opt in
-            p) peak_glob="$OPTARG" ;;
-            o) outfile="$OPTARG" ;;
-            G) genome="$OPTARG" ;;
-            *) echo "Usage: $0 [-p peak_glob] [-o output_prefix] [-G genome_file]" >&2; return 1 ;;
+# ============================= Configuration Loading =============================
+parse_yaml_config() {
+    local config="$1"
+    
+    # Simple YAML parser (handles key: value pairs)
+    while IFS=': ' read -r key value || [[ -n "$key" ]]; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "$key" ]] && continue
+        
+        # Remove leading/trailing whitespace and quotes
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs | sed 's/^["'\'']\|["'\'']$//g')
+        
+        # Skip empty values
+        [[ -z "$value" ]] && continue
+        
+        # Map config keys to variables
+        case "$key" in
+            species) SPECIES="$value" ;;
+            fastq_dir) FASTQ_DIR="$value" ;;
+            samplesheet) SAMPLESHEET="$value" ;;
+            outdir) OUTDIR="$value" ;;
+            threads) THREADS="$value" ;;
+            skip_preprocess) SKIP_PREPROCESS="$value" ;;
+            sort_mem_limit) SORT_MEM_LIMIT="$value" ;;
+            max_frag_length) MAX_FRAG_LENGTH="$value" ;;
+            call_peak) CALL_PEAK="$value" ;;
+            macs_parameter) MACS_PARAMETER="$value" ;;
+            run_spike) RUN_SPIKE="$value" ;;
+            norm_method) NORM_METHOD="$value" ;;
+            index_rootdir) INDEX_ROOTDIR="$value" ;;
+            spike_free_sf_file) SPIKE_FREE_SF_FILE="$value" ;;
+            bed_region) 
+                # Add custom BED regions to array
+                if [[ -f "$value" ]]; then
+                    CUSTOM_BED_REGIONS+=("$value")
+                    log_info "Added custom BED region: $value"
+                else
+                    log_warn "Custom BED file not found: $value, skipped"
+                fi
+                ;;
         esac
-    done
+    done < "$config"
 
-    [[ -z "$genome" ]] && { echo "Error: -G genome file is required" >&2; return 1; }
-
-    local sample_peaks=($peak_glob)
-
-    if [[ ${#sample_peaks[@]} -eq 0 || "${sample_peaks[0]}" == "$peak_glob" ]]; then
-        echo "Error: No peak files found matching '$peak_glob'" >&2
-        return 1
-    fi
-
-    echo "Merging ${#sample_peaks[@]} peak files into $outfile"
-
-    # Concatenate all files → extract first 3 cols → sort → merge within samples → merge across → sort by genome
-    cat "${sample_peaks[@]}" | \
-        cut -f1-3 | \
-        bedtools sort | \
-        bedtools merge | \
-        bedtools sort -g "$genome" > "$outfile"
-
-    if [[ -s "$outfile" ]]; then
-        echo "Consensus peaks written to: $outfile ($(wc -l < "$outfile") regions)"
+    # Peak file extension used by MACS3: broad -> broadPeak, otherwise narrowPeak
+    if [[ "$MACS_PARAMETER" =~ --broad ]]; then
+        PEAK_EXT="_peaks.broadPeak"
     else
-        echo "Error: No consensus peaks generated."
-        rm -f "$outfile"
-        return 1
+        PEAK_EXT="_peaks.narrowPeak"
+    fi
+} 
+
+
+# ============================= Sample Processing Functions =============================
+bowtie2_alignment() {
+    local sample="$1"
+    local clean1="$FASTP_DIR/${sample}_R1.fq.gz"
+    local clean2="$FASTP_DIR/${sample}_R2.fq.gz"
+    
+    local sorted_bam="$ALIGN_DIR/${sample}.sorted.bam"
+    local markdup_bam="$ALIGN_DIR/${sample}.markdup.bam"
+    local flagstat_file="$ALIGN_DIR/${sample}.markdup.flagstat"
+    
+    if [[ ! -s "$markdup_bam" || ! -s "${markdup_bam}.bai" ]]; then
+        log_info "[$sample] Aligning to genome"
+        bowtie2 -x "$BOWTIE2_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" --phred33 \
+            --very-sensitive --local --no-mixed --no-discordant -I 10 -X "$MAX_FRAG_LENGTH" \
+            --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
+            2> "$ALIGN_DIR/${sample}.bowtie2.log" \
+            | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
+            | sambamba sort -t "$THREADS" -m "$SORT_MEM_LIMIT" -o "$sorted_bam" /dev/stdin 2>/dev/null
+        
+        log_info "[$sample] Marking duplicates"
+        sambamba markdup -t "$THREADS" "$sorted_bam" "$markdup_bam" 2>/dev/null
+        sambamba index -t "$THREADS" "$markdup_bam" 2>/dev/null
+        sambamba flagstat "$markdup_bam" > "$flagstat_file" 2>/dev/null
+        [[ "$(wc -c < ${flagstat_file})" -gt 5 ]] && rm "$sorted_bam" "${sorted_bam}.bai"
+    fi
+    
+    # Extract statistics
+    local total_reads=$(extract_flagstat_value "$flagstat_file" "in total" 1)
+    local mapped_reads=$(extract_flagstat_value "$flagstat_file" "mapped (.*N/A)" 1)
+    local duplicate_reads=$(extract_flagstat_value "$flagstat_file" "duplicates" 1)
+    
+    echo "$total_reads $mapped_reads $duplicate_reads"
+}
+
+bowtie2_alignment_spike() {
+    local sample="$1"
+    local clean1="$FASTP_DIR/${sample}_R1.fq.gz"
+    local clean2="$FASTP_DIR/${sample}_R2.fq.gz"
+    
+    local spike_sorted_bam="$ALIGN_DIR/${sample}.spike.sorted.bam"
+    local spike_markdup_bam="$ALIGN_DIR/${sample}.spike.markdup.bam"
+    local spike_flagstat="$ALIGN_DIR/${sample}.spike.markdup.flagstat"
+    
+    if [[ ! -s "$spike_flagstat" ]]; then
+        log_info "[$sample] Aligning to spike-in genome"
+        bowtie2 -x "$SPIKE_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" --phred33 \
+            --very-sensitive --local --no-mixed --no-discordant --no-overlap --no-dovetail -I 10 -X "$MAX_FRAG_LENGTH" \
+            --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
+            2> "$ALIGN_DIR/${sample}.spike.bowtie2.log" \
+            | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
+            | sambamba sort -t "$THREADS" -m "$SORT_MEM_LIMIT" \
+                -o "$spike_sorted_bam" /dev/stdin 2>/dev/null
+        
+        sambamba markdup -t "$THREADS" "$spike_sorted_bam" "$spike_markdup_bam" 2>/dev/null
+        sambamba index -t "$THREADS" "$spike_markdup_bam" 2>/dev/null
+        sambamba flagstat "$spike_flagstat" > "$spike_flagstat" 2>/dev/null
+        [[ "$(wc -c < ${spike_flagstat})" -gt 5 ]] && rm "$spike_sorted_bam" "${spike_sorted_bam}.bai"
+    fi
+    
+    local spike_reads=$(extract_flagstat_value "$spike_flagstat" "mapped (.*N/A)" 1)
+    echo "$spike_reads"
+}
+
+bam_filter() {
+    local sample="$1"
+    local markdup_bam="$ALIGN_DIR/${sample}.markdup.bam"
+    local filtered_bam="$ALIGN_DIR/${sample}.filtered.bam"
+    local flagstat_filtered="$ALIGN_DIR/${sample}.filtered.flagstat"c
+    
+    if [[ ! -s "$flagstat_filtered" ]]; then
+        # unmapped (4), mate unmapped (8), secondary (256), failed QC (512), duplicate (1024) → 4+8+256+512+1024 = 1804
+        log_info "[$sample] Filtering BAM (MAPQ≥20, proper pairs, no chrM/dups)"
+        samtools view -@ "$THREADS" -b -f 2 -q 20 -F 1804 \
+            -e 'rname != "chrM" && rname !~ /^GL|^KI|^JH|^MU|^chrUn|^random|alt/' \
+            -o "$filtered_bam" "$markdup_bam" 2>/dev/null
+        sambamba index -t "$THREADS" "$filtered_bam" 2>/dev/null
+        sambamba flagstat -t "$THREADS" "$filtered_bam" > "$flagstat_filtered" 2>/dev/null
+    fi
+    
+    local filtered_reads=$(extract_flagstat_value "$flagstat_filtered" "mapped (.*N/A)" 1)
+    echo "$filtered_reads"
+}
+
+generate_bigwig() {
+    local sample="$1" scale_factor="$2"
+    local filtered_bam="$ALIGN_DIR/${sample}.filtered.bam"
+    local bigwig="$ALIGN_DIR/${sample}.${NORM_METHOD}.bw"
+    
+    if [[ ! -s "$bigwig" ]]; then
+        log_info "[$sample] Generating BigWig (scale: $scale_factor)"
+        bamCoverage -b "$filtered_bam" -o "$bigwig" \
+            -p "$THREADS" --binSize 10 --scaleFactor "$scale_factor" 2>/dev/null
     fi
 }
 
-get_base_fastq_name() {
-    local file="$1"
-    local name=$(basename "$file")
-    # Remove known extensions
-    name=${name%.fastq.gz}
-    name=${name%.fq.gz}
-    echo "$name"
+
+run_alignment() {
+    local sample="$1" group="$2" control="$3" target="$4" fq1="$5" fq2="$6"
+    
+    # Skip if already processed
+    if grep -q "^${sample}," "$STATS_CSV"; then
+        log_info "[$sample] Alignment completed"
+        return 0
+    fi
+    
+    # Alignment and marking duplicates
+    read total_reads mapped_reads duplicate_reads <<< $(bowtie2_alignment "$sample")
+    local mapped_pct dup_pct
+    mapped_pct=$(awk -v m="$mapped_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.00"} else {printf "%.2f", (m/t)*100}}')
+    dup_pct=$(awk -v d="$duplicate_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.00"} else {printf "%.2f", (d/t)*100}}')
+    log_info "[$sample] Stats - Total: $total_reads, Mapped: $mapped_reads (${mapped_pct}%), Duplicates: $duplicate_reads (${dup_pct}%)"
+    
+    # Spike-in alignment (optional)
+    local spike_reads=0
+    if [[ "$RUN_SPIKE" == true ]]; then
+        spike_reads=$(bowtie2_alignment_spike "$sample")
+        spike_pct=$(awk -v d="$spike_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.000"} else {printf "%.3f", (d/t)*100}}')
+        log_info "[$sample] Spike-in reads: $spike_reads (${spike_pct}%)"
+    fi
+    
+    # Filtering
+    local filtered_reads=$(bam_filter "$sample")
+    filtered_pct=$(awk -v d="$filtered_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.00"} else {printf "%.f", (d/t)*100}}')
+    log_info "[$sample] Filtered reads: $filtered_reads (${filtered_pct}%)"
+    
+    # Calculate normalization scale factor
+    local spike_free_file="$ALIGN_DIR/SpikeFree_SF.txt"
+    local scale_factor
+    scale_factor=$(calculate_scale_factor "$NORM_METHOD" "$filtered_reads" "$spike_reads" "$sample" "$spike_free_file")
+    log_info "[$sample] Normalization: $NORM_METHOD, Scale factor: $scale_factor"
+    
+    # Generate BigWig
+    generate_bigwig "$sample" "$scale_factor"
+    
+    # Append to statistics (frip will be updated later)
+    printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,\n' \
+        "$sample" "$group" "$control" "$target" "$fq1" "$fq2" \
+        "$total_reads" "$mapped_reads" "$duplicate_reads" "$filtered_reads" \
+        "$spike_reads" "$NORM_METHOD" "$scale_factor" >> "$STATS_CSV"
 }
 
-# ============================= Process Single Sample (Alignment Phase) =============================
-process_alignment() {
-  local sample="$1" group="$2" control="$3" fq1="$4" fq2="$5"
-
-  log ""
-  log ">>>>>>>>>>>>>>> Processing alignment for sample: $sample <<<<<<<<<<<<<<<<<"
-
-  # Resume check
-  if grep -q "^${sample}," "$STATS_CSV"; then
-    log "[SKIP] Already processed (found in $STATS_CSV)"
-    return 0
-  fi
-
-  # Input validation
-  # require_file "$fq1"
-  # require_file "$fq2"
-
-  # File paths
-  local clean1="$TRIMDIR/${sample}_R1.fq.gz"
-  local clean2="$TRIMDIR/${sample}_R2.fq.gz"
-  local sorted_bam="$ALIGNDIR/${sample}.sorted.bam"
-  local markdup_bam="$ALIGNDIR/${sample}.markdup.bam"
-  local flagstat_file="$ALIGNDIR/${sample}.markdup.flagstat"
-  local filtered_bam="$ALIGNDIR/${sample}.filtered.bam"
-  local flagstat_filtered_file="$ALIGNDIR/${sample}.filtered.flagstat"
-  local frag_bw="$ALIGNDIR/${sample}.${NORM_METHOD}.bw"
-
-  # FastQC
-  local qc1="$FASTQCDIR/$(get_base_fastq_name "$fq1")_fastqc.zip"
-  local qc2="$FASTQCDIR/$(get_base_fastq_name "$fq2")_fastqc.zip"
-  if [[ ! -s "$qc1" || ! -s "$qc2" ]]; then
-    log "[FastQC] $sample"
-    fastqc -t "$THREADS" -o "$FASTQCDIR" --quiet "$fq1" "$fq2" 2>/dev/null
-  fi
-
-  # Trimming
-  if [[ ! -s "$clean1" ]] || [[ ! -s "$clean2" ]]; then
-    log "[Trimming] $sample"
-    fastp -i "$fq1" -I "$fq2" -o "$clean1" -O "$clean2" \
-      --thread "$THREADS" --detect_adapter_for_pe \
-      --json "$TRIMDIR/${sample}.json" --html "$TRIMDIR/${sample}.html" 2>/dev/null
-  fi
-
-  # Alignment → Sort → Mark Duplicates
-  if [[ ! -s "$markdup_bam" ]] || [[ ! -s "${markdup_bam}.bai" ]]; then
-    log "[Alignment] $sample -> $INDEX_DIR"
-    bowtie2 -x "$BOWTIE2_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" \
-      --very-sensitive --local --no-mixed --no-discordant -X "$MAX_FRAG_LENGTH" \
-      --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
-      2> "$ALIGNDIR/${sample}.bowtie2.log" \
-      | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
-      | sambamba sort -t "$THREADS" -m "$SORT_MEM_LIMIT" -o $sorted_bam /dev/stdin 2>/dev/null
-
-    log "[Mark Duplicates] $sample"
-    sambamba markdup -t "$THREADS" "$sorted_bam" "$markdup_bam" 2>/dev/null
-    sambamba index -t "$THREADS" "$markdup_bam" 2>/dev/null
-    sambamba flagstat "$markdup_bam" > "$ALIGNDIR/${sample}.markdup.flagstat" 2>/dev/null
-  fi
-  # Statistics from markdup BAM
-  local total_reads=$(get_flagstat_value "$flagstat_file" "in total" 1)
-  local mapped_reads=$(get_flagstat_value "$flagstat_file" "mapped (.*N/A)" 1)
-  local duplicate_reads=$(get_flagstat_value "$flagstat_file" "duplicates" 1)
-  log "[Stats] total=$total_reads, mapped=$mapped_reads, dup=$duplicate_reads"
-
-  # Spike-in alignment (optional)
-  local spike_reads=0
-  if [[ "$RUN_SPIKE" == true ]]; then
-    local spike_sorted_bam="$ALIGNDIR/${sample}.spike.sorted.bam"
-    local spike_markdup_bam="$ALIGNDIR/${sample}.spike.markdup.bam"
-    local spike_flagstat_file="$ALIGNDIR/${sample}.spike.markdup.flagstat"
-    if [[ ! -s "$spike_markdup_bam" ]]; then
-      log "[Spike-in Alignment] $sample -> $SPIKE_DIR"
-      bowtie2 -x "$SPIKE_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" \
-        --very-sensitive --local --no-mixed --no-discordant -X "$MAX_FRAG_LENGTH" \
-        --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
-        2> "$ALIGNDIR/${sample}.spike.bowtie2.log" \
-        | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
-        | sambamba sort -t "$THREADS" -m "$SORT_MEM_LIMIT" -o "$spike_sorted_bam" /dev/stdin 2>/dev/null
-
-      log "[Mark Duplicates (Spike)] $sample"
-      sambamba markdup -t "$THREADS" "$spike_sorted_bam" "$spike_markdup_bam" 2>/dev/null
-      sambamba index -t "$THREADS" "$spike_markdup_bam" 2>/dev/null
-      sambamba flagstat "$spike_markdup_bam" > "$spike_flagstat_file" 2>/dev/null
-    fi
-    spike_reads=$(get_flagstat_value "$spike_flagstat_file" "mapped (.*N/A)" 1)
-    log "[Stats] spike_reads=$spike_reads"
-  fi
-
-  # Filter BAM (proper pairs, MAPQ≥10, no chrM, no dups)
-  if [[ ! -s "${flagstat_filtered_file}" ]]; then
-    log "[Filter] $sample"
-    samtools view -@ "$THREADS" -b -f 2 -q 10 -F 1804 -e 'rname != "chrM"' -o "$filtered_bam" "$markdup_bam" 2>/dev/null
-    sambamba index -t "$THREADS" "$filtered_bam" 2>/dev/null
-    sambamba flagstat -t "$THREADS" "$filtered_bam" >"$flagstat_filtered_file" 2>/dev/null
-  fi
-  local filtered_reads=$(get_flagstat_value "$flagstat_filtered_file" "mapped (.*N/A)" 1)
-  log "[Stats] filtered_reads=$filtered_reads"
-
-  # Normalization scale factor
-  local scale_factor=1.0
-  if [[ "$NORM_METHOD" == "CPM" && $filtered_reads -gt 0 ]]; then
-    scale_factor=$(awk "BEGIN{printf \"%.6f\", 1e6 / $filtered_reads}")
-  elif [[ "$NORM_METHOD" == "Spike" && $spike_reads -gt 0 ]]; then
-    scale_factor=$(awk "BEGIN{printf \"%.6f\", 1e4 / $spike_reads}")
-  elif [[ "$NORM_METHOD" == "SpikeFree" ]]; then
-    if [[ ! -s "$SPIKE_FREE_SF_FILE" ]]; then
-      die "SpikeFree mode requires file: $SPIKE_FREE_SF_FILE"
-    fi
-    local sf_raw
-    sf_raw=$(awk -F'\t' -v s="$sample" '
-      NR>1 {
-        gsub(/\.filtered\.bam$/, "", $1)
-        if ($1 == s) { print $7; exit }
-      }
-    ' "$SPIKE_FREE_SF_FILE")
-    if [[ -z "$sf_raw" ]]; then
-      die "Sample $sample not found in $SPIKE_FREE_SF_FILE"
-    fi
-    scale_factor=$(awk "BEGIN{printf \"%.6f\", 1e6 / ($filtered_reads * $sf_raw)}")
-  fi
-  log "[Normalization] method=$NORM_METHOD, scale_factor=$scale_factor"
-
-  # Generate BigWig
-  if [[ ! -s "$frag_bw" ]]; then
-    log "[BigWig] $sample"
-    bamCoverage -b "$filtered_bam" -o "$frag_bw" -of bigwig -p "$THREADS" \
-      --binSize 10 --scaleFactor "$scale_factor" 2>/dev/null
-  fi
-
-  # Append to stats CSV (with placeholder for frip)
-  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%.6f,\n' \
-    "$sample" "$group" "$control" "$fq1" "$fq2" \
-    "$total_reads" "$mapped_reads" "$duplicate_reads" "$filtered_reads" "$spike_reads" \
-    "$NORM_METHOD" "$scale_factor" \
-    >> "$STATS_CSV"
-
-  log "[COMPLETED] Alignment for $sample"
-}
-
-
-# ============================= Process Peaks =============================
-process_peaks() {
-  local sample="$1" group="$2" control="$3" fq1="$4" fq2="$5"
-
-  log ""
-  log ">>>>>>>>>>>>>>> Processing peaks for sample: $sample <<<<<<<<<<<<<<<<<"
-
-  local filtered_bam="$ALIGNDIR/${sample}.filtered.bam"
-  local peak_file="$PEAKDIR/${sample}_peaks.${PEAK_TYPE}Peak"
-
-  # Peak calling with MACS2
-  if [[ "$CALL_PEAK" == true ]]; then
+# ============================= Peak Calling =============================
+run_macs() {
+    local sample="$1" group="$2" control="$3" target="$4"
+    
+    local filtered_bam="$ALIGN_DIR/${sample}.filtered.bam"
+    local peak_file="$PEAK_DIR/${sample}${PEAK_EXT}"
+    
     if [[ ! -s "$peak_file" ]]; then
-      log "[Peak Calling] MACS2 ($PEAK_TYPE) on $sample"
-      mkdir -p "$PEAKDIR"
-      local macs_args=("-t" "$filtered_bam" -f BAMPE -g "$GSIZE" \
-        -n "$PEAKDIR/${sample}" --nomodel --keep-dup all -q 0.2)
-      if [[ "$PEAK_TYPE" == "broad" ]]; then
-        macs_args+=("--broad")
-      fi
-      if [[ -n "$control" ]]; then
-        local control_bam="$ALIGNDIR/${control}.filtered.bam"
-        require_file "$control_bam"
-        macs_args+=("-c" "$control_bam")
-      fi
-      # echo macs2 callpeak "${macs_args[@]}"
-      macs2 callpeak "${macs_args[@]}" 2>/dev/null
+        log_info "[$sample] Running macs"
+        
+        # Build MACS3 arguments
+        local -a macs_args=("-t" "$filtered_bam" "-f" "BAMPE" "-g" "$GSIZE" "-n" "$PEAK_DIR/${sample}" "--keep-dup" "all")
+        # Split MACS parameters string into array and append
+        read -ra macs_params_arr <<< "$MACS_PARAMETER"
+        macs_args+=("${macs_params_arr[@]}")
+        
+        if [[ -n "$control" ]]; then
+            local control_bam="$ALIGN_DIR/${control}.filtered.bam"
+            if [[ -f "$control_bam" ]]; then
+                macs_args+=("-c" "$control_bam")
+            else
+                log_warn "[$sample] Control BAM not found: $control_bam"
+            fi
+        fi
+        
+        macs3 callpeak "${macs_args[@]}" 2>/dev/null
+    else
+        log_info "[$sample] Call peak completed"
     fi
-  fi
+} 
 
-  log "[COMPLETED] Peaks for $sample"
+# ============================= Peak Consensus =============================
+run_consensus() {
+    # Collect samples by target
+    declare -A target_peaks
+    declare -a all_peak_files
+
+    while IFS=, read -r sample group control target fq1 fq2 || [[ -n "${sample:-}" ]]; do
+        [[ "$sample" == "sample" ]] && continue
+        [[ -z "$sample" ]] && continue
+
+        local peak_file="$PEAK_DIR/${sample}${PEAK_EXT}"
+        [[ ! -f "$peak_file" ]] && continue
+
+        all_peak_files+=("$peak_file")
+
+        if [[ -n "$target" ]]; then
+            if [[ -z "${target_peaks[$target]:-}" ]]; then
+                target_peaks[$target]="$peak_file"
+            else
+                target_peaks[$target]="${target_peaks[$target]} $peak_file"
+            fi
+        fi
+    done < <(tail -n +2 "$SAMPLESHEET" | tr -d '\r')
+
+    # Create consensus for each target
+    for target in "${!target_peaks[@]}"; do
+        local -a peaks=()
+        read -ra peaks <<< "${target_peaks[$target]}"
+        # echo "$target: ${peaks[@]}"
+
+        if [[ ${#peaks[@]} -eq 0 ]]; then
+            log_warn "No peak files for target: $target"
+            continue
+        fi
+
+        local consensus_bed="${PEAK_DIR}/consensus_${target}.bed"
+        if [[ ! -s "$consensus_bed" ]]; then
+            log_info "Creating consensus peaks for: $target (${#peaks[@]} samples)"
+            log_info "Samples: ${peaks[@]}"
+            merge_peakfiles --input-peaks "${peaks[*]}" --output-bed "$consensus_bed" --chrom-size "$CHROM_SIZES" || \
+                { 
+                    log_warn "Failed to create consensus for: $target"
+                    continue
+                }
+        else 
+            log_info "[$target] Consensus peak completed"
+        fi
+    done
+
+    # Create consensus for all samples, only if N target > 1
+    if [[ ${#target_peaks[@]} -gt 1 ]] && [[ ! -s "${PEAK_DIR}/consensus_all.bed" ]]; then
+        local consensus_bed="${PEAK_DIR}/consensus_all.bed"
+        log_info "Creating consensus peaks for: all (${#all_peak_files[@]} samples)"
+        merge_peakfiles --input-peaks "${all_peak_files[*]}" --output-bed "$consensus_bed" --chrom-size "$CHROM_SIZES" || \
+            log_warn "Failed to create consensus for: all"
+    fi
 }
 
 
-# ============================= Global QC =============================
-run_qc() {
-  local samplesheet_path="$1"
-  local consensus_peak="$2"
 
-  log ""
-  log ">>>>>>>>>>>>>>> Global QC <<<<<<<<<<<<<<<<<"
+calculate_frip() {
+    local prefix="$1"
+    local consensus_bed="$2"
+    shift 2
 
-  # Collect files in order (or auto-detect)
-  local -a bam_array=() name_array=() bw_array=()
-
-  if [[ -n "$samplesheet_path" && -s "$samplesheet_path" ]]; then
-    while IFS=, read -r sample _ _ _ _ || [[ -n "${sample:-}" ]]; do
-      [[ "$sample" == "sample" ]] && continue
-      [[ -z "$sample" ]] && continue
-      local bam="$ALIGNDIR/${sample}.filtered.bam"
-      local bw="$ALIGNDIR/${sample}.${NORM_METHOD}.bw"
-      if [[ -s "$bam" ]]; then
-        bam_array+=("$bam")
-        name_array+=("$sample")
-        bw_array+=("$bw")
-      fi
-    done < <(tail -n +2 "$samplesheet_path" | tr -d '\r')
-  else
-    mapfile -t bams < <(find "$ALIGNDIR" -name "*.filtered.bam" | sort)
-    for bam in "${bams[@]}"; do
-      sample=$(basename "$bam" .filtered.bam)
-      bw="$ALIGNDIR/${sample}.${NORM_METHOD}.bw"
-      bam_array+=("$bam")
-      name_array+=("$sample")
-      bw_array+=("$bw")
-    done
-  fi
-
-  # BAM-level QC
-  if (( ${#bam_array[@]} > 0 )); then
-    log "[QC] Found ${#bam_array[@]} BAM files"
-
-    # Fragment length
-    if [[ ! -s "$QCDIR/BAM_fragment_length.pdf" ]]; then
-      log "[QC] BAM Fragment length"
-      bamPEFragmentSize -b "${bam_array[@]}" -p "$THREADS" --maxFragmentLength "$MAX_FRAG_LENGTH" \
-        --histogram "$QCDIR/BAM_fragment_length.pdf" --samplesLabel "${name_array[@]}" \
-        --outRawFragmentLengths "$QCDIR/BAM_fragment_length.txt" >/dev/null
+    local -a bam_array=("$@")
+    if [[ ${#bam_array[@]} -eq 0 || ! -f "$consensus_bed" ]]; then
+        return 0
     fi
+    local -a name_array=()
+    for bam in "${bam_array[@]}"; do
+        name_array+=("$(basename "$bam" .filtered.bam)")
+    done
+    
+    local frip_tab="$MULTIQC_DIR/consensus_${prefix}_frip.tab"
+    local frip_plot="$MULTIQC_DIR/consensus_${prefix}_frip.pdf"
+    if [[ ! -s "$frip_tab" ]]; then
+        log_info "[QC] Computing FRiP: $prefix"
+        plotEnrichment -p "$THREADS" -b "${bam_array[@]}" \
+            --BED "$consensus_bed" --labels "${name_array[@]}" --outRawCounts "$frip_tab" --extendReads \
+            --plotFile "$frip_plot" --plotTitle "FRiP - $prefix (Consensus Peaks)" >/dev/null
+    fi
+}
+
+profile_heatmap() {
+    local prefix="$1"
+    local bed_file="$2"
+    local type="$3"
+    shift 3
+
+    local -a bw_array=("$@")
+    if [[ ${#bw_array[@]} -eq 0 || ! -f "$bed_file" ]]; then
+        return 0
+    fi
+    local -a name_array=()
+    for bw in "${bw_array[@]}"; do
+        name_array+=("$(basename "$bw" .${NORM_METHOD}.bw)")
+    done
+        
+    local bed_name=$(basename "$bed_file" .bed)
+    log_info "[QC] Generating heatmaps: $prefix (type: $type)"
+    
+    # TSS heatmap
+    if [[ "$type" == "tss" || "$type" == "both" ]]; then
+        local heatmap_tss="$MULTIQC_DIR/${bed_name}_${prefix}_tss_${NORM_METHOD}_heatmap.pdf"
+        if [[ ! -s "$heatmap_tss" ]]; then
+            local mat_tss="$MULTIQC_DIR/${bed_name}_${prefix}_tss_${NORM_METHOD}_mat.gz"
+            [[ ! -s "$mat_tss" ]] && \
+                computeMatrix reference-point --referencePoint TSS -S "${bw_array[@]}" -R "$bed_file" \
+                    -o "$mat_tss" -p "$THREADS" -b 3000 -a 3000 --skipZeros \
+                    --samplesLabel "${name_array[@]}" --quiet >/dev/null
+            plotHeatmap -m "$mat_tss" -out "$heatmap_tss" --colorMap Blues >/dev/null
+        fi
+    fi
+
+    # Center heatmap
+    if [[ "$type" == "center" || "$type" == "both" ]]; then
+        local heatmap_center="$MULTIQC_DIR/${bed_name}_${prefix}_center_${NORM_METHOD}_heatmap.pdf"
+        if [[ ! -s "$heatmap_center" ]]; then
+            local mat_center="$MULTIQC_DIR/${bed_name}_${prefix}_center_${NORM_METHOD}_mat.gz"
+            [[ ! -s "$mat_center" ]] && \
+                computeMatrix reference-point --referencePoint center -S "${bw_array[@]}" -R "$bed_file" \
+                    -o "$mat_center" -p "$THREADS" -b 3000 -a 3000 --skipZeros \
+                    --samplesLabel "${name_array[@]}" --quiet >/dev/null
+            plotHeatmap -m "$mat_center" -out "$heatmap_center" --colorMap Blues >/dev/null
+        fi
+    fi
+    
+    # # Gene body heatmap (unchanged: always generated)
+    # local heatmap_body="$MULTIQC_DIR/${bed_name}_${prefix}_body_${NORM_METHOD}_heatmap.pdf"
+    # if [[ ! -s "$heatmap_body" ]]; then
+    #     local mat_body="$MULTIQC_DIR/${bed_name}_${prefix}_body_${NORM_METHOD}_mat.gz"
+    #     [[ ! -s "$mat_body" ]] && \
+    #         computeMatrix scale-regions -S "${bw_array[@]}" -R "$bed_file" \
+    #             -o "$mat_body" -p "$THREADS" -b 3000 -a 3000 --skipZeros \
+    #             --regionBodyLength 5000 --samplesLabel "${name_array[@]}" \
+    #             --quiet 2>/dev/null
+    #     plotHeatmap -m "$mat_body" -out "$heatmap_body" --colorMap Blues 2>/dev/null
+    # fi
+}
+
+bam_qc() {
+    local -a bam_array=("$@")
+    
+    if [[ ${#bam_array[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    local -a name_array=()
+    for bam in "${bam_array[@]}"; do
+        name_array+=("$(basename "$bam" .filtered.bam)")
+    done
+    
+    # Fragment length distribution
+    if [[ ! -s "$MULTIQC_DIR/BAM_fragment_length.pdf" ]]; then
+        log_info "[QC] Calculating fragment length distribution"
+        bamPEFragmentSize -b "${bam_array[@]}" -p "$THREADS" --maxFragmentLength "$MAX_FRAG_LENGTH" \
+            --histogram "$MULTIQC_DIR/BAM_fragment_length.pdf" --samplesLabel "${name_array[@]}" \
+            --outRawFragmentLengths "$MULTIQC_DIR/BAM_fragment_length.txt" >/dev/null
+    fi
+    
     # Fingerprint
-    log "[QC] BAM Fingerprint"
-    if [[ ! -s "$QCDIR/BAM_fingerprint.pdf" ]]; then
-      plotFingerprint -b "${bam_array[@]}" -p "$THREADS" --labels "${name_array[@]}" \
-        --plotFile "$QCDIR/BAM_fingerprint.pdf" --skipZeros
+    if [[ ! -s "$MULTIQC_DIR/BAM_fingerprint.pdf" ]]; then
+        log_info "[QC] Generating fingerprint plot"
+        plotFingerprint -b "${bam_array[@]}" -p "$THREADS" --labels "${name_array[@]}" \
+            --plotFile "$MULTIQC_DIR/BAM_fingerprint.pdf" --skipZeros >/dev/null
     fi
-  fi
+}
 
-  # BigWig-level QC
-  if (( ${#bw_array[@]} > 0 )); then
-    log "[QC] Found ${#bw_array[@]} BigWig files (method: $NORM_METHOD)"
-
-    # multiBigwigSummary + Correlation/PCA
-    if [[ ! -s "$QCDIR/BigWig_${NORM_METHOD}.npz" ]]; then
-      log "[QC] BigWig calculation"
-      multiBigwigSummary bins -b "${bw_array[@]}" -p "$THREADS" --labels "${name_array[@]}" \
-        -o "$QCDIR/BigWig_${NORM_METHOD}.npz" >/dev/null
+bigwig_qc() {
+    local prefix="$1"
+    shift
+    local -a bw_array=("$@")
+    
+    if [[ ${#bw_array[@]} -eq 0 ]]; then
+        return 0
     fi
-    if [[ ! -s "$QCDIR/BigWig_${NORM_METHOD}_PCA.pdf" ]]; then
-      log "[QC] BigWig PCA"
-      plotPCA -in "$QCDIR/BigWig_${NORM_METHOD}.npz" -o "$QCDIR/BigWig_${NORM_METHOD}_PCA.pdf"
-    fi
-    if [[ ! -s "$QCDIR/BigWig_${NORM_METHOD}_correlation.pdf" ]]; then
-      log "[QC] BigWig correlation"
-      plotCorrelation -in "$QCDIR/BigWig_${NORM_METHOD}.npz" --corMethod spearman \
-        --whatToPlot heatmap -o "$QCDIR/BigWig_${NORM_METHOD}_correlation.pdf"
-    fi
-
-    # Heatmaps over genes
-    local heatmap_color='Blues'
-    for bed_path in "${BED_REGIONS[@]}"; do
-      [[ ! -f "$bed_path" ]] && continue
-      bed_name=$(basename "$bed_path" .bed)
-      log "[QC] Heatmap over bed: $bed_name"
-
-      # TSS
-      heatmap_tss="$QCDIR/${bed_name}_tss_${NORM_METHOD}_heatmap.pdf"
-      if [[ ! -s "$heatmap_tss" ]]; then
-        log "[QC] TSS"
-        mat_tss="$QCDIR/${bed_name}_tss_${NORM_METHOD}_mat.gz"
-        [[ ! -s "$mat_tss" ]] && computeMatrix reference-point -S "${bw_array[@]}" -R "$bed_path" -o "$mat_tss" \
-          -p "$THREADS" -b 3000 -a 3000 --skipZeros --samplesLabel "${name_array[@]}" --quiet
-        plotHeatmap -m "$mat_tss" -out "$heatmap_tss" --colorMap "$heatmap_color"
-      fi
-
-      heatmap_body="$QCDIR/${bed_name}_body_${NORM_METHOD}_heatmap.pdf"
-      if [[ ! -s "$heatmap_body" ]]; then
-        mat_body="$QCDIR/${bed_name}_body_${NORM_METHOD}_mat.gz"
-        log "[QC] gene body"
-        [[ ! -s "$mat_body" ]] && computeMatrix scale-regions -S "${bw_array[@]}" -R "$bed_path" -o "$mat_body" \
-          -p "$THREADS" -b 3000 -a 3000 --skipZeros --samplesLabel "${name_array[@]}" --quiet --regionBodyLength 5000
-        plotHeatmap -m "$mat_body" -out "$heatmap_body" --colorMap "$heatmap_color"
-      fi
+    
+    local -a name_array=()
+    for bw in "${bw_array[@]}"; do
+        name_array+=("$(basename "$bw" .${NORM_METHOD}.bw)")
     done
-
-    # Consensus peak heatmaps and FRiP
-    if [[ -n "$consensus_peak" && -s "$consensus_peak" ]]; then
-      heatmap_peak="$QCDIR/consensus_peak_${NORM_METHOD}_heatmap.pdf"
-      if [[ ! -s "$heatmap_peak" ]]; then
-        log "[QC] Heatmap over consensus peak $consensus_peak"
-        mat_peak="$QCDIR/consensus_peak_${NORM_METHOD}_mat.gz"
-        [[ ! -s "$mat_peak" ]] && computeMatrix reference-point --referencePoint center -S "${bw_array[@]}" -R "$consensus_peak" \
-          -o "$mat_peak" -p "$THREADS" -b 3000 -a 3000 --skipZeros --samplesLabel "${name_array[@]}" \
-          --outFileSortedRegions "$QCDIR/consensus_peak_${NORM_METHOD}_sorted.bed"
-        plotHeatmap -m "$mat_peak" -out "$heatmap_peak" --colorMap "$heatmap_color"
-      fi
-
-      # FRiP with plotEnrichment using consensus peaks
-      local frip_tab="$QCDIR/consensus_frip.tab"
-      local frip_plot="$QCDIR/consensus_frip.pdf"
-      if [[ ! -s "$frip_tab" ]]; then
-        log "[QC] Computing FRiP using plotEnrichment with consensus peaks"
-        plotEnrichment -p "$THREADS" -b "${bam_array[@]}" --BED "$consensus_peak" \
-          --labels "${name_array[@]}" --outRawCounts "$frip_tab" --extendReads \
-          --plotFile "$frip_plot" --plotTitle "FRiP (Consensus Peaks)"
-      fi
-
+    
+    local npz_file="$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}.npz"
+     
+    # Compute summary
+    if [[ ! -s "$npz_file" ]]; then
+        log_info "[QC] Computing BigWig summary: $prefix"
+        multiBigwigSummary bins -b "${bw_array[@]}" -p "$THREADS" \
+            --labels "${name_array[@]}" -o "$npz_file" 2>/dev/null
     fi
-
-  fi
-
-  # MultiQC
-  log "[MultiQC] Generating report"
-  multiqc "$OUTDIR" --force -o "$QCDIR" --title "CUT&Tag Report"
+    
+    # PCA plot
+    if [[ ! -s "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_PCA.pdf" ]]; then
+        log_info "[QC] Generating PCA plot: $prefix"
+        plotPCA -in "$npz_file" -o "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_PCA.pdf" >/dev/null
+    fi
+    
+    # Correlation heatmap
+    if [[ ! -s "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_correlation.pdf" ]]; then
+        log_info "[QC] Generating correlation heatmap: $prefix"
+        plotCorrelation -in "$npz_file" --corMethod spearman --whatToPlot heatmap \
+            -o "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_correlation.pdf" >/dev/null
+    fi
 }
 
 
-# ============================= Main Execution =============================
+run_global_qc() {
+    # Collect all samples organized by target
+    # Collect samples organized by target
+    # Populates: TARGET_SAMPLES (associative array)
+    declare -gA TARGET_SAMPLES
+    declare -ga ALL_SAMPLES ALL_BAMS ALL_BWS ALL_TARGETS
+    while IFS=, read -r sample group control target fq1 fq2 || [[ -n "${sample:-}" ]]; do
+        [[ "$sample" == "sample" ]] && continue
+        [[ -z "$sample" ]] && continue
+        
+        local bam="$ALIGN_DIR/${sample}.filtered.bam"
+        local bw="$ALIGN_DIR/${sample}.${NORM_METHOD}.bw"
+        
+        [[ ! -f "$bam" ]] && continue
+        
+        ALL_SAMPLES+=("$sample")
+        ALL_BAMS+=("$bam")
+        ALL_BWS+=("$bw")
+        
+        if [[ -n "$target" ]]; then
+            if [[ -z "${TARGET_SAMPLES[$target]:-}" ]]; then
+                TARGET_SAMPLES[$target]="$sample"
+                ALL_TARGETS+=("$target")
+            else
+                TARGET_SAMPLES[$target]="${TARGET_SAMPLES[$target]} $sample"
+            fi
+        fi
+    done < <(tail -n +2 "$SAMPLESHEET" | tr -d '\r')
+    
+    if [[ ${#ALL_SAMPLES[@]} -eq 0 ]]; then
+        log_warn "No samples found for QC"
+        return 0
+    fi
+    
+    log_info "Found ${#ALL_SAMPLES[@]} samples across ${#ALL_TARGETS[@]} targets"
+    
 
-# Logging
-LOG_FILE="./pipeline.log"
-exec > >(tee -a "$LOG_FILE") 2>&1
+    # BAM-level QC (all samples)
+    bam_qc "${ALL_BAMS[@]}"
+    
+    # BigWig QC for all samples
+    bigwig_qc "all_samples" "${ALL_BWS[@]}"
+    
+    # Heatmaps for all samples over genomic regions
+    for bed_file in "${BED_REGIONS[@]}"; do
+        [[ -f "$bed_file" ]] && profile_heatmap "all_samples" "$bed_file" "both" "${ALL_BWS[@]}"
+    done
 
-log "============================================================"
-log "Starting CUT&Tag pipeline"
-log "Species: $SPECIES | Spike-in: $RUN_SPIKE | Normalization: $NORM_METHOD"
-log "Peak calling: $CALL_PEAK ($PEAK_TYPE) | FRiP: $RUN_FRIP"
-log "Log file: $LOG_FILE"
-log "============================================================"
+    # Target-specific consensus peak QC
+    for target in "${ALL_TARGETS[@]}"; do
+        # Get samples for this target
+        local -a target_samples=() target_bams=() target_bws=()
+        read -ra target_samples <<< "${TARGET_SAMPLES[$target]}"
+        for sample in "${target_samples[@]}"; do
+            target_bams+=("$ALIGN_DIR/${sample}.filtered.bam")
+            target_bws+=("$ALIGN_DIR/${sample}.${NORM_METHOD}.bw")
+        done
 
-# Initialize directories and stats CSV
-mkdir -p "$OUTDIR" "$FASTQCDIR" "$TRIMDIR" "$ALIGNDIR" "$PEAKDIR" "$QCDIR"
-readonly STATS_CSV="$OUTDIR/statistics_${NORM_METHOD}.csv"
-if [[ ! -f "$STATS_CSV" ]]; then
-  log "Initializing statistics CSV: $STATS_CSV"
-  cat > "$STATS_CSV" <<EOF
-sample,group,control,fq1,fq2,total_reads,mapped_reads,duplicate_reads,filtered_reads,spike_reads,norm_method,scale_${NORM_METHOD}
+        # # Heatmaps for target
+        # for bed_file in "${BED_REGIONS[@]}"; do
+        #     [[ -f "$bed_file" ]] && profile_heatmap "$target" "$bed_file" "center" "${target_bws[@]}"
+        # done
+        
+        # Consensus peak heatmap and FRiP for target
+        local target_consensus="$PEAK_DIR/consensus_${target}.bed"
+        if [[ -f "$target_consensus" ]]; then
+            calculate_frip "$target" "$target_consensus" "${target_bams[@]}"
+            profile_heatmap "$target" "$target_consensus" "center" "${target_bws[@]}"
+        fi
+    done
+    
+    # All-samples consensus peak QC, If only one target, skip
+    if [[ ${#ALL_TARGETS[@]} -gt 1 ]]; then
+        local all_consensus="$PEAK_DIR/consensus_all.bed"
+        if [[ -f "$all_consensus" ]]; then
+            calculate_frip "all" "$all_consensus" "${ALL_BAMS[@]}"
+            profile_heatmap "all" "$all_consensus" "center" "${ALL_BWS[@]}"
+        fi
+    fi
+    
+    # MultiQC
+    log_info "[QC] Generating MultiQC report"
+    multiqc "$OUTDIR" --force -o "$MULTIQC_DIR" --title "CUT&Tag Analysis" >/dev/null || true
+}
+
+
+# ============================= Main Pipeline =============================
+main() {
+    local config_file="${1:-}"
+    
+    # Setup logging
+    local log_file="./pipeline.log"
+    exec > >(tee -a "$log_file") 2>&1
+    
+    log_info "============================================================"
+    log_info "CUT&Tag Analysis Pipeline"
+    log_info "============================================================"
+    
+    # Check dependencies
+    require_commands fastqc fastp bowtie2 sambamba samtools macs3 deeptools bedtools multiqc
+
+    # Load configuration
+    parse_yaml_config "$config_file"
+
+    # Setup genome
+    setup_genome "$SPECIES" "$INDEX_ROOTDIR"
+
+    # Check samplesheet
+    if [[ ! -s "$SAMPLESHEET" ]]; then
+        log_warn "Samplesheet not found: $SAMPLESHEET"
+        log_info "Generating template samplesheet from FASTQ directory..."
+        generate_samplesheet "$FASTQ_DIR" "$SAMPLESHEET"
+        log_info "Please edit $SAMPLESHEET and re-run the pipeline"
+        exit 0
+    fi
+
+    # Define directory paths
+    FASTQC_DIR="$OUTDIR/01_fastqc"
+    FASTP_DIR="$OUTDIR/02_fastp"
+    ALIGN_DIR="$OUTDIR/03_bam"
+    PEAK_DIR="$OUTDIR/04_peaks"
+    MULTIQC_DIR="$OUTDIR/05_multiqc"
+    # Create directories
+    create_dirs "$OUTDIR" "$FASTQC_DIR" "$FASTP_DIR" "$ALIGN_DIR" "$PEAK_DIR" "$MULTIQC_DIR"
+    
+    # Initialize statistics file
+    STATS_CSV="$OUTDIR/statistics_${NORM_METHOD}.csv"
+    if [[ ! -f "$STATS_CSV" ]]; then
+        log_info "Initializing statistics file: $STATS_CSV"
+        cat > "$STATS_CSV" <<EOF
+sample,group,control,target,fq1,fq2,total_reads,mapped_reads,duplicate_reads,filtered_reads,spike_reads,norm_method,scale_factor
 EOF
-fi
+    fi
 
-# Alignment phase
-safe_loop "$SAMPLESHEET" process_alignment
+    # Display configuration
+    log_info "Configuration:"
+    log_info "  Species: $SPECIES"
+    log_info "  Samplesheet: $SAMPLESHEET"
+    log_info "  Threads: $THREADS"
+    log_info "  Normalization: $NORM_METHOD"
+    log_info "  Peak calling: $CALL_PEAK ($MACS_PARAMETER)"
+    log_info "  Spike-in: $RUN_SPIKE"
+    log_info "============================================================"
+    
+    # Phase 1: Pre-processing
+    if [[ "$SKIP_PREPROCESS" == true ]]; then
+        log_info ""
+        log_info "========== Skip Pre-processing =========="
+    else
+        log_info ""
+        log_info "========== Phase 1: Pre-processing  =========="
+        loop_over_csv "$SAMPLESHEET" run_preprocess
+    fi
 
-# Peak calling phase (individual sample peaks)
-if [[ "$CALL_PEAK" == true ]]; then
-  safe_loop "$SAMPLESHEET" process_peaks
-fi
+    # Phase 2: Alignment
+    log_info ""
+    log_info "========== Phase 2: Alignment =========="
+    loop_over_csv "$SAMPLESHEET" run_alignment
+    
+    # Phase 3: Peak Calling
+    if [[ "$CALL_PEAK" == true ]]; then
+        log_info ""
+        log_info "========== Phase 3: Peak Calling =========="
+        loop_over_csv "$SAMPLESHEET" run_macs
+        
+        # Consensus Peaks
+        log_info "========== Consensus Peaks =========="
+        run_consensus
+    fi
+    
+    # Phase 4: QC
+    log_info ""
+    log_info "========== Phase 4: QC =========="
+    run_global_qc
+    
+    log_info ""
+    log_info "============================================================"
+    log_info "Pipeline completed successfully!"
+    log_info "============================================================"
+}
 
-# Consensus peak calling
-consensus_peakfile="$PEAKDIR/consensus.bed"
-if [[ ! -s "$consensus_peakfile" ]]; then
-  merge_consensus_peak -p "$PEAKDIR/*_peaks.${PEAK_TYPE}Peak" -o "$consensus_peakfile" -G "$CHROM_SIZES"
-fi
 
-# Global QC (including consensus FRiP)
-run_qc "$SAMPLESHEET" "$consensus_peakfile"
-
-log "============================================================"
-log "Pipeline finished successfully!"
-log "Statistics → $STATS_CSV"
-log "Alignments → $ALIGNDIR/"
-log "QC Reports → $QCDIR/"
-log "Consensus peaks → $consensus_peakfile"
-log "============================================================"
+# ============================= Entry Point =============================
+main "$@"
