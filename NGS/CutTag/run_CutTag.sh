@@ -92,7 +92,7 @@ bowtie2_alignment() {
         bowtie2 -x "$BOWTIE2_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" --phred33 \
             --very-sensitive --local --no-mixed --no-discordant -I 10 -X "$MAX_FRAG_LENGTH" \
             --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
-            2> "$ALIGN_DIR/${sample}.bowtie2.log" \
+            2>"$ALIGN_DIR/${sample}.bowtie2.log" \
             | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
             | sambamba sort -t "$THREADS" -m "$SORT_MEM_LIMIT" -o "$sorted_bam" /dev/stdin 2>/dev/null
         
@@ -117,22 +117,19 @@ bowtie2_alignment_spike() {
     local clean2="$FASTP_DIR/${sample}_R2.fq.gz"
     
     local spike_sorted_bam="$ALIGN_DIR/${sample}.spike.sorted.bam"
-    local spike_markdup_bam="$ALIGN_DIR/${sample}.spike.markdup.bam"
-    local spike_flagstat="$ALIGN_DIR/${sample}.spike.markdup.flagstat"
+    local spike_flagstat="$ALIGN_DIR/${sample}.spike.sorted.flagstat"
     
     if [[ ! -s "$spike_flagstat" ]]; then
         log_info "[$sample] Aligning to spike-in genome"
         bowtie2 -x "$SPIKE_INDEX" -1 "$clean1" -2 "$clean2" -p "$THREADS" --phred33 \
-            --very-sensitive --local --no-mixed --no-discordant --no-overlap --no-dovetail -I 10 -X "$MAX_FRAG_LENGTH" \
+            --very-sensitive --local --no-mixed --no-discordant -I 10 -X "$MAX_FRAG_LENGTH" \
             --rg-id "$sample" --rg "SM:${sample}\tPL:ILLUMINA" \
-            2> "$ALIGN_DIR/${sample}.spike.bowtie2.log" \
+            2>"$ALIGN_DIR/${sample}.spike.bowtie2.log" \
             | sambamba view -t "$THREADS" -S -f bam /dev/stdin 2>/dev/null \
             | sambamba sort -t "$THREADS" -m "$SORT_MEM_LIMIT" \
                 -o "$spike_sorted_bam" /dev/stdin 2>/dev/null
         
-        sambamba markdup -t "$THREADS" "$spike_sorted_bam" "$spike_markdup_bam" 2>/dev/null
-        sambamba index -t "$THREADS" "$spike_markdup_bam" 2>/dev/null
-        sambamba flagstat "$spike_flagstat" > "$spike_flagstat" 2>/dev/null
+        sambamba flagstat "$spike_sorted_bam" > "$spike_flagstat" 2>/dev/null
         [[ "$(wc -c < ${spike_flagstat})" -gt 5 ]] && rm "$spike_sorted_bam" "${spike_sorted_bam}.bai"
     fi
     
@@ -144,14 +141,14 @@ bam_filter() {
     local sample="$1"
     local markdup_bam="$ALIGN_DIR/${sample}.markdup.bam"
     local filtered_bam="$ALIGN_DIR/${sample}.filtered.bam"
-    local flagstat_filtered="$ALIGN_DIR/${sample}.filtered.flagstat"c
+    local flagstat_filtered="$ALIGN_DIR/${sample}.filtered.flagstat"
     
     if [[ ! -s "$flagstat_filtered" ]]; then
         # unmapped (4), mate unmapped (8), secondary (256), failed QC (512), duplicate (1024) → 4+8+256+512+1024 = 1804
         log_info "[$sample] Filtering BAM (MAPQ≥20, proper pairs, no chrM/dups)"
         samtools view -@ "$THREADS" -b -f 2 -q 20 -F 1804 \
-            -e 'rname != "chrM" && rname !~ /^GL|^KI|^JH|^MU|^chrUn|^random|alt/' \
-            -o "$filtered_bam" "$markdup_bam" 2>/dev/null
+            -e 'rname != "chrM" && ! (rname =~ "^(GL|KI|JH|MU|chrUn|random|alt)")' \
+            -o "$filtered_bam" "$markdup_bam"
         sambamba index -t "$THREADS" "$filtered_bam" 2>/dev/null
         sambamba flagstat -t "$THREADS" "$filtered_bam" > "$flagstat_filtered" 2>/dev/null
     fi
@@ -189,6 +186,11 @@ run_alignment() {
     dup_pct=$(awk -v d="$duplicate_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.00"} else {printf "%.2f", (d/t)*100}}')
     log_info "[$sample] Stats - Total: $total_reads, Mapped: $mapped_reads (${mapped_pct}%), Duplicates: $duplicate_reads (${dup_pct}%)"
     
+    # Filtering
+    local filtered_reads=$(bam_filter "$sample")
+    filtered_pct=$(awk -v d="$filtered_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.00"} else {printf "%.f", (d/t)*100}}')
+    log_info "[$sample] Filtered reads: $filtered_reads (${filtered_pct}%)"
+
     # Spike-in alignment (optional)
     local spike_reads=0
     if [[ "$RUN_SPIKE" == true ]]; then
@@ -196,11 +198,6 @@ run_alignment() {
         spike_pct=$(awk -v d="$spike_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.000"} else {printf "%.3f", (d/t)*100}}')
         log_info "[$sample] Spike-in reads: $spike_reads (${spike_pct}%)"
     fi
-    
-    # Filtering
-    local filtered_reads=$(bam_filter "$sample")
-    filtered_pct=$(awk -v d="$filtered_reads" -v t="$total_reads" 'BEGIN{if(t==0){printf "0.00"} else {printf "%.f", (d/t)*100}}')
-    log_info "[$sample] Filtered reads: $filtered_reads (${filtered_pct}%)"
     
     # Calculate normalization scale factor
     local spike_free_file="$ALIGN_DIR/SpikeFree_SF.txt"
@@ -413,8 +410,8 @@ bam_qc() {
     # Fingerprint
     if [[ ! -s "$MULTIQC_DIR/BAM_fingerprint.pdf" ]]; then
         log_info "[QC] Generating fingerprint plot"
-        plotFingerprint -b "${bam_array[@]}" -p "$THREADS" --labels "${name_array[@]}" \
-            --plotFile "$MULTIQC_DIR/BAM_fingerprint.pdf" --skipZeros >/dev/null
+        plotFingerprint -b "${bam_array[@]}" -p "$THREADS" --labels "${name_array[@]}" -skipZeros \
+            --plotFile "$MULTIQC_DIR/BAM_fingerprint.pdf" ---outRawCounts "$QCDIR/BAM_fingerprint.txt" >/dev/null
     fi
 }
 

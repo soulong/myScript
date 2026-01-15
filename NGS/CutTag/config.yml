@@ -3,9 +3,10 @@
 # enter data_directory -> run script to get samplesheet -> run pipeline
 # Usage:
 # cd /mnt/f/workspace/2026-01-08_CutTag_293T_ZTX 
+# mamba activate ngs
 # bash /mnt/f/GitHub/myScript/NGS/CutTag/run_cuttag.sh config.yml 
 # edit samplesheet.csv and config.yml
-# bash /mnt/f/GitHub/myScript/NGS/CutTag/run_cuttag.sh config.yml 
+# bash /mnt/f/GitHub/myScript/NGS/CutTag/run_cuttag.sh config.yml
 
 # ============================= Basic Settings =============================
 # Species: "hs" (human GRCh38), "chm13" (T2T-CHM13), or "mm" (mouse GRCm39)
@@ -32,18 +33,17 @@ max_frag_length: 2000
 # Skip preprocessing steps, this is for running non-standard pipelines
 skip_preprocess: false
 
-# ============================= Analysis Options =============================
-# Peak calling with MACS3
-call_peak: true
-
-# MACS3 parameters used for peak calling. Example: "--nomodel --shift -100 --extsize 200 -q 0.01 --broad"
-macs_parameter: --nomodel --shift -100 --extsize 200 -q 0.05
-
 # Perform spike-in normalization alignment
 run_spike: false
 
 # Normalization method: "CPM" (counts per million), "Spike" (spike-in), or "SpikeFree"
 norm_method: CPM
+
+# Peak calling with MACS3
+call_peak: true
+
+# MACS3 parameters used for peak calling. Example: "--nomodel --shift -100 --extsize 200 -q 0.01 --broad"
+macs_parameter: --nomodel --shift -100 --extsize 200 -q 0.05
 
 # ============================= Index Paths =============================
 # Root directory containing genome indices
