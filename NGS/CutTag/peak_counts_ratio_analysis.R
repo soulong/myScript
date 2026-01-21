@@ -16,19 +16,8 @@ library(furrr)
 
 options(future.globals.maxSize=2 * 1024^3)  # 2GB if needed
 
-# setwd("F:/workspace/IMR/result")
-setwd("F:\\workspace\\cuttag_TEAD_3P51_YTP2\\")
+setwd("F:/workspace/IMR/result")
 # setwd("F:/workspace/J009_IMR_0_0.3_0.6/result")
-
-
-# get sample datasheet
-if(F) {
-  list.files('01.RawData', '_1.fq.gz', recursive=T, full.names=T) %>% 
-    enframe(name=NULL, value='fq1') %>% 
-    mutate(fq2=str_replace_all(fq1, '_1.fq.gz', '_2.fq.gz')) %>% 
-    mutate(sample=NA, group=NA, control=NA, .before=1) %>% 
-    write_csv('sample.csv')
-}
 
 
 # ==== Input ====
@@ -40,8 +29,8 @@ df <- tibble(
 )
 
 # ==== Genomic resources (minimal, standard chromosomes only) ====
-genes <- genes(TxDb.Mmusculus.UCSC.mm39.knownGene) %>%
-# genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene) %>%
+genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene) %>%
+# genes <- genes(TxDb.Mmusculus.UCSC.mm39.knownGene) %>%
   keepStandardChromosomes(pruning.mode="coarse") %>%
   sort()
 
