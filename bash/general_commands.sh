@@ -39,26 +39,27 @@ sudo mount -t drvfs E: /mnt/e
 sudo mkdir /mnt/mint
 sudo mount -t drvfs '\\10.36.172.157\mint' /mnt/mint
 
-# remove a mounted driver
+## remove a mounted driver
 sudo rm /mnt/driveX
 
-# export/import wsl image
+## export/import wsl image
 image_name=Ubuntu-24.04
 wsl --shutdown && wsl -l -v 
-wsl --export $image_name F:/${image_name}.tar
-wsl --import $image_name C:/wsl/ D:/${image_name}.tar --version 2
+wsl --export $image_name F:/wsl/${image_name}.tar
+wsl --import $image_name C:/wsl/ F:/wsl/${image_name}.tar --version 2
 wsl --unregister $image_name # release old image space
 
-# compact wsl image, first shtdown wsl2 by: wsl --shutdown
-# in powershell
+## compact wsl image
+# in powershell, get all wsl location
+# Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss\
+# in powershell, first shtdown wsl2 by: wsl --shutdown
 diskpart
-select vdisk file="C:\Users\haohe\AppData\Local\wsl\{4b2b6a94-a636-4186-9794-fb87d75f0b0c}\ext4.vhdx"
+select vdisk file="C:\Users\zhugy\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx"
 attach vdisk readonly
 compact vdisk
 detach vdisk
 exit
 
-/mnt/e/04_LGLab/EED/CutTag_IMR_MEF/MEF
 
 ################## NGS ##################
 # make sure no backspace in all filepaths

@@ -248,7 +248,7 @@ main() {
     # Phase 4: QC
     log_info ""
     log_info "========== Phase 4: QC =========="
-    multiqc -f "$OUTDIR" -o "$MULTIQC_DIR" --title "RNAseq Analysis" >/dev/null
+    multiqc -f "$OUTDIR" -o "$MULTIQC_DIR" --title "RNAseq Analysis" 2>/dev/null
     
     log_info ""
     log_info "============================================================"

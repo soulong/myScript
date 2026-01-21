@@ -28,7 +28,7 @@ threads: 16
 sort_mem_limit: 16G
 
 # Maximum fragment length for paired-end alignment
-max_frag_length: 2000
+max_frag_length: 1000
 
 # Skip preprocessing steps, this is for running non-standard pipelines
 skip_preprocess: false

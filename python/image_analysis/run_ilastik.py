@@ -229,7 +229,7 @@ def main() -> None:
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("root_dir", type=str, help="Root folder containing *_Measurement X folders")
     parser.add_argument("--ilastik_proj", type=str, required=True, help="Path to ilastik project file (.ilp)")
-    parser.add_argument("--ilastik_exec", type=str, default="/home/haohe/ilastik-1.4.2b5-Linux/run_ilastik.sh", help="Path to ilastik launcher script (e.g. run_ilastik.sh)")
+    parser.add_argument("--ilastik_exec", type=str, default="/home/haohe/ilastik-1.4.2b6-Linux/run_ilastik.sh", help="Path to ilastik launcher script (e.g. run_ilastik.sh)")
     parser.add_argument("--image_subdir", type=str, default="Images", help="Subfolder containing raw TIFFs")
     parser.add_argument("--image_suffix", type=str, default=".tiff", help="File extension of input images")
     parser.add_argument("--output_suffix", type=str, default="Probabilities", help="Suffix added to output probability maps")

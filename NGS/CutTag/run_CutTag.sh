@@ -145,8 +145,8 @@ bam_filter() {
     
     if [[ ! -s "$flagstat_filtered" ]]; then
         # unmapped (4), mate unmapped (8), secondary (256), failed QC (512), duplicate (1024) → 4+8+256+512+1024 = 1804
-        log_info "[$sample] Filtering BAM (MAPQ≥20, proper pairs, no chrM/dups)"
-        samtools view -@ "$THREADS" -b -f 2 -q 20 -F 1804 \
+        log_info "[$sample] Filtering BAM (MAPQ≥30, proper pairs, no chrM/dups)"
+        samtools view -@ "$THREADS" -b -f 2 -q 30 -F 1804 \
             -e 'rname != "chrM" && ! (rname =~ "^(GL|KI|JH|MU|chrUn|random|alt)")' \
             -o "$filtered_bam" "$markdup_bam"
         sambamba index -t "$THREADS" "$filtered_bam" 2>/dev/null
@@ -283,8 +283,8 @@ run_consensus() {
 
         local consensus_bed="${PEAK_DIR}/consensus_${target}.bed"
         if [[ ! -s "$consensus_bed" ]]; then
-            log_info "Creating consensus peaks for: $target (${#peaks[@]} samples)"
-            log_info "Samples: ${peaks[@]}"
+            log_info "[$target] Make consensus from ${#peaks[@]} samples"
+            # log_info "Samples: ${peaks[@]}"
             merge_peakfiles --input-peaks "${peaks[*]}" --output-bed "$consensus_bed" --chrom-size "$CHROM_SIZES" || \
                 { 
                     log_warn "Failed to create consensus for: $target"
@@ -346,7 +346,7 @@ profile_heatmap() {
     done
         
     local bed_name=$(basename "$bed_file" .bed)
-    log_info "[QC] Generating heatmaps: $prefix (type: $type)"
+    log_info "[Heatmap QC] $prefix ($type) over $bed_name"
     
     # TSS heatmap
     if [[ "$type" == "tss" || "$type" == "both" ]]; then
@@ -401,7 +401,7 @@ bam_qc() {
     
     # Fragment length distribution
     if [[ ! -s "$MULTIQC_DIR/BAM_fragment_length.pdf" ]]; then
-        log_info "[QC] Calculating fragment length distribution"
+        log_info "[BAM QC] Calculating fragment length"
         bamPEFragmentSize -b "${bam_array[@]}" -p "$THREADS" --maxFragmentLength "$MAX_FRAG_LENGTH" \
             --histogram "$MULTIQC_DIR/BAM_fragment_length.pdf" --samplesLabel "${name_array[@]}" \
             --outRawFragmentLengths "$MULTIQC_DIR/BAM_fragment_length.txt" >/dev/null
@@ -409,9 +409,9 @@ bam_qc() {
     
     # Fingerprint
     if [[ ! -s "$MULTIQC_DIR/BAM_fingerprint.pdf" ]]; then
-        log_info "[QC] Generating fingerprint plot"
-        plotFingerprint -b "${bam_array[@]}" -p "$THREADS" --labels "${name_array[@]}" -skipZeros \
-            --plotFile "$MULTIQC_DIR/BAM_fingerprint.pdf" ---outRawCounts "$QCDIR/BAM_fingerprint.txt" >/dev/null
+        log_info "[BAM QC] Generating fingerprint"
+        plotFingerprint -b "${bam_array[@]}" -p "$THREADS" --labels "${name_array[@]}" --skipZeros \
+            --plotFile "$MULTIQC_DIR/BAM_fingerprint.pdf" --outRawCounts "$MULTIQC_DIR/BAM_fingerprint.txt" >/dev/null 2>&1
     fi
 }
 
@@ -433,20 +433,20 @@ bigwig_qc() {
      
     # Compute summary
     if [[ ! -s "$npz_file" ]]; then
-        log_info "[QC] Computing BigWig summary: $prefix"
+        log_info "[BigWig QC] Computing BigWig"
         multiBigwigSummary bins -b "${bw_array[@]}" -p "$THREADS" \
             --labels "${name_array[@]}" -o "$npz_file" 2>/dev/null
     fi
     
     # PCA plot
     if [[ ! -s "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_PCA.pdf" ]]; then
-        log_info "[QC] Generating PCA plot: $prefix"
+        log_info "[BigWig QC] Generating PCA"
         plotPCA -in "$npz_file" -o "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_PCA.pdf" >/dev/null
     fi
     
     # Correlation heatmap
     if [[ ! -s "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_correlation.pdf" ]]; then
-        log_info "[QC] Generating correlation heatmap: $prefix"
+        log_info "[BigWig QC] Generating Correlation"
         plotCorrelation -in "$npz_file" --corMethod spearman --whatToPlot heatmap \
             -o "$MULTIQC_DIR/BigWig_${prefix}_${NORM_METHOD}_correlation.pdf" >/dev/null
     fi
@@ -529,13 +529,13 @@ run_global_qc() {
         local all_consensus="$PEAK_DIR/consensus_all.bed"
         if [[ -f "$all_consensus" ]]; then
             calculate_frip "all" "$all_consensus" "${ALL_BAMS[@]}"
-            profile_heatmap "all" "$all_consensus" "center" "${ALL_BWS[@]}"
+            # profile_heatmap "all" "$all_consensus" "center" "${ALL_BWS[@]}"
         fi
     fi
     
     # MultiQC
-    log_info "[QC] Generating MultiQC report"
-    multiqc "$OUTDIR" --force -o "$MULTIQC_DIR" --title "CUT&Tag Analysis" >/dev/null || true
+    log_info "[Multi QC] Generating MultiQC report"
+    multiqc "$OUTDIR" --force -o "$MULTIQC_DIR" --title "CUT&Tag Analysis" 2>/dev/null || true
 }
 
 

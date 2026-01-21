@@ -7,7 +7,7 @@ cd '/mnt/f/GitHub/myScript/python/image_analysis'
 ## setup
 # root_dir="/mnt/c/Users/haohe/Desktop/"
 # root_dir="/mnt/d/LGLab/Project_NMN/2025-12-22_H3K27me3_IF_analysis/20251222 old plate IMR90 NMN__2025-12-22T15_05_24-Measurement 1"
-root_dir="/mnt/e/haohe_data/operetta/2025-12-30_HEK293_p53" # 2025-12-30_HEK293_p53 # 2025-12-24_H1299_reporter_p53
+root_dir="/mnt/f/workspace/3p51_hoechst" # 2025-12-30_HEK293_p53 # 2025-12-24_H1299_reporter_p53
 
 ## ---------------------------------------
 # optinal
@@ -16,25 +16,23 @@ python run_zprojection.py "$root_dir"
 python run_split_frame.py "$root_dir" --tile_width 4096 --tile_height 4096
 
 # check dataset
-python image_helper.py "$root_dir" --dry_run
-
-# kwargs='{"remove_na_row":False,"image_subdir":"Images","subset_pattern":".*_z[123][13579]_ORG--t","image_suffix":".tif","image_extractor":"(?P<celltype>.*) (?P<treat>.*) SIR DNA_SIM²_z(?P<stack>.*)_ORG--t(?P<field>\\d+)_r\\d+c\\d+_?(?P<self_generated>.*)"}'
-kwargs='{"remove_na_row":True, "subset_pattern":".*p03-ch"}'
+# kwargs='{"remove_na_row":True, "subset_pattern":".*p03-ch"}'
 # kwargs='{"remove_na_row":True, "image_extractor":"(?P<field>\\d+)-(?P<treat>\\d+)", "mask_extractor":"(?P<field>\\d+)-(?P<treat>\\d+)_cp_(?P<mask_name>.*)"}'
+kwargs='{"remove_na_row":False,"subset_pattern":"z[1234567][159]c","image_suffix":".tif","image_extractor":"(?P<name>.*)_SIM².*_z(?P<stack>.*)c(?P<channel>.*)_ORG(?P<self_generated>.*)"}'
+
+python image_helper.py "$root_dir" --dry_run
 python image_helper.py "$root_dir" --dry_run --dataset_kwargs "$kwargs"
-# IMR90 Control SIR DNA_SIM²_z01_ORG.tif
-# MEF Scramble KO NMN_3D_1_SIM²_z40_ORG.tif
 
 # optinal
 python run_basic_correction.py "$root_dir" --mode fit --channels ch1 #--dataset_kwargs "$kwargs"
 python run_basic_correction.py "$root_dir" --mode transform --channels ch1 #--dataset_kwargs "$kwargs"
 
 # cell segmentation
-python run_cellpose.py "$root_dir" --chan1 ch1 --resize 0.5 --dataset_kwargs "$kwargs" #--overwrite
-# python run_cellpose.py "$root_dir" --chan1 ch0 --diameter 500 --resize 0.5 --model "cpsam_nuclei_SIM_63x" --normalize "percentile:0.1,99.9" --flow_thresh 0.4 --cellprob_thresh -1 --dataset_kwargs "$kwargs"
+# python run_cellpose.py "$root_dir" --chan1 ch2 --resize 0.5 --dataset_kwargs "$kwargs" #--overwrite
+python run_cellpose.py "$root_dir" --chan1 ch2 --resize 0.5 --model "cpsam_nuclei_SIM_63x" --normalize "percentile:0.1,99.9" --flow_thresh 0.4 --cellprob_thresh -1 --dataset_kwargs "$kwargs"
 
 # optinal
-python run_ilastik.py "$root_dir" --image_suffix ".tif" --subset_pattern ".*_z[123][13579]_ORG--t" --ilastik_proj "${root_dir}/../nulei_sim.ilp"
+python run_ilastik.py "$root_dir" --image_suffix ".tif" --subset_pattern ".*_z[1234567][159]" --ilastik_proj "${root_dir}/MyProject.ilp"
 
 # prepare dataloader
 python image_helper.py $root_dir --cp_dataloder --dataset_kwargs "$kwargs" --overwrite

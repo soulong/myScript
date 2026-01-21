@@ -80,8 +80,14 @@ get_stats_one_rep <- function(
     g, t, consens,
     sample_size
 ) {
-  gene_sampled <- sample(g, sample_size, replace=FALSE)
-  tss_sampled  <- sample(t, sample_size, replace=FALSE)
+  if (sample_size==0) {
+    gene_sampled <- g
+    tss_sampled  <- t
+  } else {
+    gene_sampled <- sample(g, sample_size, replace=FALSE)
+    tss_sampled  <- sample(t, sample_size, replace=FALSE)
+  }
+
   
   gene_flank <- reduce(c(
     flank(gene_sampled, 10000, start=TRUE,  both=FALSE),
@@ -191,5 +197,16 @@ patchwork::wrap_plots(plots, ncol=1) %>%
   ggsave(glue::glue("{Sys.Date()}_stats_tidy.pdf"), ., 
          width=8, height=3 * length(plots))
 
+
+
+
+
+stats <- future_map2(
+  df$bam_file, df$peak_file,
+  \(x, y) get_stats(x, y, genes_reduced, tss_reduced, consensus,
+                    sample_rep=1, sample_size=0)) %>%
+  set_names(df$sample)
+
+# plan(sequential)
 
 

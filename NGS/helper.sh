@@ -437,7 +437,7 @@ merge_peakfiles() {
         return 1
     fi
 
-    log_info "Merging ${#peak_files[@]} peak files into $output_bed"
+    # log_info "Merging ${#peak_files[@]} peak files into $output_bed"
 
     # Merge peaks: concatenate -> extract coords -> sort -> merge -> sort by genome
     cat "${peak_files[@]}" | \
@@ -449,7 +449,7 @@ merge_peakfiles() {
     if [[ -s "$output_bed" ]]; then
         local count
         count=$(wc -l < "$output_bed")
-        log_info "Consensus peaks contain $count regions"
+        log_info "$count regions merged"
         return 0
     else
         log_error "Failed to generate consensus peaks"
@@ -506,25 +506,87 @@ setup_genome() {
     )
 }
 
-# # ============================= Array Utilities =============================
-# array_contains() {
-#     # Check if array contains element
-#     # Usage: array_contains "element" "${array[@]}" && echo "found"
-#     local seeking="$1"
-#     shift
-#     local element
-    
-#     for element; do
-#         [[ "$element" == "$seeking" ]] && return 0
-#     done
-#     return 1
-# }
 
-# get_unique_values() {
-#     # Get unique values from array
-#     # Usage: unique_vals=($(get_unique_values "${all_vals[@]}"))
-#     printf '%s\n' "$@" | sort -u
-# }
 
-# # ============================= Export Functions =============================
-# # Make functions available to subshells if needed
+# ============================= Merge fq by same samples =============================
+# Merges split FASTQ files (from SRA / multiple lanes/runs) into one pair per sample
+# Used for downloaded from GEO/ENA, example:
+# mamba activate ngs && fastq-dl --group-by-sample --ignore --outdir fastq --cpus 16 --force -a SRP108500
+# Arguments:
+#   $1 = path to samplesheet (SraRunTable.csv, downloaded from SRA selector metadata)
+#   $2 = directory containing the raw *_1.fastq.gz and *_2.fastq.gz files (fastq-dl style)
+#   $3 = output directory (will be created if missing)   [default: ./merged]
+# Assumptions (this is SRA selector metadata style):
+#   - Column 1  = Run (SRRxxxxxx)
+#   - Column 25 = Sample Name (usually GSMxxxxxx)
+#   - Files are named exactly like: SRR5638491_1.fastq.gz / SRR5638491_2.fastq.gz
+# =============================================================================
+merge_fastq_by_sample() {
+    local samplesheet="$1"
+    local input_dir="$2"
+    local out_dir="${3:-merged}"
+
+    if [[ ! -f "$samplesheet" ]]; then
+        echo "Error: samplesheet not found: $samplesheet" >&2
+        return 1
+    fi
+    if [[ ! -d "$input_dir" ]]; then
+        echo "Error: input directory not found: $input_dir" >&2
+        return 1
+    fi
+
+    mkdir -p "$out_dir" || return 1
+
+    # Extract unique sample names (skip header)
+    local samples
+    samples=$(awk -F',' 'NR>1 {print $25}' "$samplesheet" | sort -u)
+
+    local total=$(echo "$samples" | wc -l)
+    local i=0
+
+    echo "Found $total unique samples in $samplesheet"
+
+    while IFS= read -r sample; do
+        ((i++))
+        printf "\n[%2d/%d] %s\n" "$i" "$total" "$sample"
+
+        # Find all runs for this sample
+        local runs
+        runs=$(awk -F',' -v s="$sample" '$25==s {print $1}' "$samplesheet")
+
+        # Build list of R1 and R2 files (only if they exist)
+        local r1_files=()
+        local r2_files=()
+
+        for run in $runs; do
+            local f1="${input_dir}/${run}_1.fastq.gz"
+            local f2="${input_dir}/${run}_2.fastq.gz"
+
+            [[ -f "$f1" ]] && r1_files+=("$f1")
+            [[ -f "$f2" ]] && r2_files+=("$f2")
+        done
+
+        if [[ ${#r1_files[@]} -eq 0 ]]; then
+            echo "  Warning: no R1 files found for $sample" >&2
+            continue
+        fi
+
+        # Merge R1
+        echo "  Merging ${#r1_files[@]} R1 files → ${out_dir}/${sample}_1.fastq.gz"
+        cat "${r1_files[@]}" > "${out_dir}/${sample}_1.fastq.gz"
+
+        # Merge R2 (if any exist)
+        if [[ ${#r2_files[@]} -gt 0 ]]; then
+            if [[ ${#r1_files[@]} -ne ${#r2_files[@]} ]]; then
+                echo "  Warning: number of R1 (${#r1_files[@]}) ≠ R2 (${#r2_files[@]}) for $sample" >&2
+            fi
+            echo "  Merging ${#r2_files[@]} R2 files → ${out_dir}/${sample}_2.fastq.gz"
+            cat "${r2_files[@]}" > "${out_dir}/${sample}_2.fastq.gz"
+        else
+            echo "  Note: no R2 files found for $sample" >&2
+        fi
+
+    done <<< "$samples"
+
+    echo -e "\nDone. Merged files are in: $out_dir/"
+}
