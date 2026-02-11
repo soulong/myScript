@@ -1,28 +1,23 @@
 # CUT&Tag Pipeline Configuration File
-# place this file in your working directory
-# enter data_directory -> run script to get samplesheet -> run pipeline
-# Usage:
-# cd /mnt/f/workspace/2026-01-08_CutTag_293T_ZTX 
-# mamba activate ngs
-# bash /mnt/f/GitHub/myScript/NGS/CutTag/run_cuttag.sh config.yml 
-# edit samplesheet.csv and config.yml
-# bash /mnt/f/GitHub/myScript/NGS/CutTag/run_cuttag.sh config.yml
 
 # ============================= Basic Settings =============================
-# Species: "hs" (human GRCh38), "chm13" (T2T-CHM13), or "mm" (mouse GRCm39)
-species: chm13
-
-# Sample sheet CSV file (must contain columns: sample,group,control,target,fq1,fq2)
-samplesheet: samplesheet.csv
+# root directory of project
+root_dir: "/mnt/d/20260211_CutTag"
 
 # Directory containing raw FASTQ files
 fastq_dir: 01.RawData
+
+# Species: "hs" (human), "mm" (mouse), "chm13" (T2T-CHM13)
+species: hs
+
+# Sample sheet CSV file (must contain columns: sample,group,control,target,fq1,fq2)
+samplesheet: samplesheet.csv
 
 # Output directory for all results
 outdir: result
 
 # Number of threads for parallel processing
-threads: 16
+threads: 8
 
 # Memory limit for sambamba sort (e.g., "16G", "32G")
 sort_mem_limit: 16G
@@ -49,7 +44,7 @@ macs_parameter: --nomodel --shift -100 --extsize 200 -q 0.05
 # Root directory containing genome indices
 # Modify this to match your system's index location
 # check helper.sh for more details
-index_rootdir: /mnt/f/index
+index_rootdir: /mnt/d/index
 
 # Expected directory structure under index_rootdir:
 #   index_rootdir/

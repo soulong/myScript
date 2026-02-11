@@ -2,122 +2,51 @@
 title: "RNAseq quantification"
 author: "Hao He"
 date: "`r Sys.time()`"
-format: html
 editor_options:
-  # output in console or inline
   chunk_output_type: console
 params:
-  # root directory
-  # one of "hs", "mm"
-  # sample info file located in root_dir
-  
-  # if get quantification from bam file
-  # if None, infer from salmon log file
-  
-  # annotation files
-  # root_dir: "`r getwd()`"
+  # project directory
+  root_dir: "D:\\20260211 RNA seq"
+  # hs or mm
   species: "hs" 
-  sample_info_file: "sample_info.xlsx" 
-  salmon_dir: "salmon"
+  # general setting
+  samplesheet: "samplesheet.csv" 
   quantification_dir: "quantification"
-  quant_from_bam: False
-  bam_dir: "bam"
-  featurecounts_path: "~/miniconda3/envs/ngs/bin/featureCounts"
-  lib_type_featurecounts: "None"
-  thread: 30
-  hs_gtf_file: "/media/hao/Data1/index/hs/GRCh38.gtf.gz"
-  mm_gtf_file: "/media/hao/Data1/index/mm/GRCm38.gtf.gz"
+  salmon_dir: "result\\03_salmon"
+  bam_dir: "result\\04_bam"
+  bam_count_dir: "result\\05_counts"
+  hs_gtf_file: "D:\\index\\hs\\v49\\gencode.v49.basic.annotation.gtf.gz"
+  mm_gtf_file: "D:\\index\\hs\\vM38\\gencode.vM38.basic.annotation.gtf.gz"
 ---
 
 
 ## Setup
-```{r setup, include=FALSE, cache = FALSE}
-# options("repos" = c(CRAN = "http://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
-# options(BioC_mirror = "http://mirrors.tuna.tsinghua.edu.cn/bioconductor")
-f_path <- rstudioapi::getActiveDocumentContext()$path |> dirname()
-knitr::opts_knit$set(root.dir=dirname(f_path))
-knitr::opts_chunk$set(echo = TRUE, results = "hold", cache = TRUE)
+```{r setup, include=FALSE, cache=FALSE}
+# options("repos"=c(CRAN="http://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+# options(BioC_mirror="http://mirrors.tuna.tsinghua.edu.cn/bioconductor")
+script_path <- rstudioapi::getActiveDocumentContext()$path |> dirname()
+source(file.path(script_path, "RNAseq_helper.R"))
+
+# knitr::opts_knit$set(root.dir=dirname(f_path))
+setwd(params$root_dir)
+knitr::opts_chunk$set(echo=TRUE, results="hold", cache=TRUE)
 
 library(tidyverse)
 library(tximport)
-library(writexl)
-library(readxl)
-library(tictoc)
+library(rio)
+options(rio.import.class='tbl')
 ```
 
-```{r}
-# species check
-if(params$species == "hs") {
-  gtf_file <- file.path(params$hs_gtf_file)
-} else {
-  if(params$species == "mm") {
-  gtf_file <- file.path(params$mm_gtf_file)
-  } else {
-    stop("params error: species must be one of hs, mm")
-  }
-}
-
-source("scripts/RNAseq_helper.R")
-```
-
-
-## Generate sample names
-```{r}
-if(F) {
-salmon_smaples <- str_glue("{params$salmon_dir}") %>% 
-  list.dirs(full.names=F, recursive=F)
-
-# to tidy df
-salmon_smaples <- salmon_smaples %>% 
-  set_names(., nm=.) %>% 
-  map(\(x) str_split_fixed(x, "-", n=5) %>% 
-        as.data.frame() %>%
-        as_tibble()) %>% 
-  bind_rows(.id="id") %>% 
-  mutate(across(everything(), as.character)) %>% 
-  magrittr::set_colnames(
-    c("id","cell","cmpd","conc","rep","suffix")) %>% #view()
-  group_by(cell, cmpd) %>% 
-  mutate(
-    conc=ifelse(cmpd=="DMSO", "0", conc),
-    rep=ifelse(
-      cmpd=="DMSO", as.character(row_number()), rep)) %>% #view()
-  ungroup() %>% 
-  mutate(cell=factor(cell), 
-         cmpd=factor(cmpd) %>% forcats::fct_relevel("DMSO"),
-         conc=as.numeric(conc)) %>% 
-  arrange(cell, cmpd, conc) %>% #view()
-  mutate(
-    sample_name= str_glue("{cell}_{cmpd}_{conc}#{rep}"), 
-    include = "yes",
-    batch = "1",
-    .after=id)
-
-write_csv(salmon_smaples, "samples.csv")
-}
-```
-
-
-## Get sample info 
+## Get sample data 
 ```{r}
 # load sample info
-sample <- file.path(params$sample_info_file) %>% 
-  read_xlsx(sheet="sample", col_types="text")
-
-# check sample info if project_id and sample_name were unique
-if(length(sample$project_id) != unique(length(sample$project_id))) {
-  stop("check samples file, `project_id` were not unique\n")
-} else {
-  if(length(sample$sample_name) != unique(length(sample$sample_name))) {
-    stop("check samples file, `sample_name` were not unique\n")
-  }
-}
-
-print(sample)
+sample <- import(params$samplesheet) %>% print()
 ```
 
 ## Get annotation
 ```{r}
+gtf_file <- ifelse(params$species == "hs", params$hs_gtf_file, params$mm_gtf_file)
+
 # extract annotation data
 pharse_gtf <- function(gtf_file) {
   gtf <- rtracklayer::import(gtf_file) %>%
@@ -141,33 +70,30 @@ pharse_gtf <- function(gtf_file) {
 }
 
 gtf <- pharse_gtf(gtf_file)
-print(gtf)
 
 # tidy gtf annotation
 t2g <- gtf %>% 
   filter(type == "transcript") %>%
   select(transcript_id, gene_id) %>%
-  distinct(transcript_id, .keep_all = TRUE)
+  distinct(transcript_id, .keep_all=TRUE)
 
 transcript_annotation <- gtf %>% 
   filter(type == "transcript") %>%
-  select(ensembl_id = transcript_id, 
-         symbol = transcript_name, 
-         type = matches("transcript_(bio)?type")) %>%
-  distinct(ensembl_id, .keep_all = TRUE)
+  select(ensembl_id=transcript_id, 
+         symbol=transcript_name, 
+         type=matches("transcript_(bio)?type")) %>%
+  distinct(ensembl_id, .keep_all=TRUE)
 
 gene_annotation <- gtf %>% 
   filter(type == "gene") %>%
-  select(ensembl_id = gene_id, 
-         symbol = gene_name, 
-         type = matches("gene_(bio)?type")) %>%
-  distinct(ensembl_id, .keep_all = TRUE)
+  select(ensembl_id=gene_id, 
+         symbol=gene_name, 
+         type=matches("gene_(bio)?type")) %>%
+  distinct(ensembl_id, .keep_all=TRUE)
 ```
 
 
-
 ## Transcript quantification
-
 ```{r transcript_level_quantification}
 if(dir.exists(params$salmon_dir)) {
   
@@ -183,25 +109,22 @@ if(dir.exists(params$salmon_dir)) {
     set_names(salmon_dirs)
   
   # check if equal
-  if(!setequal(names(salmon_quant_files), sample$project_id))
-    stop("project_id in sample_info are not identical with salmon oupput\n")
+  if(!setequal(names(salmon_quant_files), sample$sample))
+    stop("sample in sample_info are not identical with salmon oupput\n")
   
-  # set project_id to sample_name in expression matrix
-  names(salmon_quant_files) <- map_int(
-    names(salmon_quant_files), 
-    \(x) which(x==sample$project_id)) %>%
-    sample$sample_name[.]
+  # # set sample to sample_name in expression matrix
+  # names(salmon_quant_files) <- map_int(
+  #   names(salmon_quant_files), 
+  #   \(x) which(x==sample$sample_name)) %>%
+  #   sample$sample_name[.]
   
   # re-order sample according to sample info in excel
-  salmon_quant_files <- 
-    salmon_quant_files[match(sample$sample_name,
-                             names(salmon_quant_files))]
+  salmon_quant_files <- salmon_quant_files[sample$sample]
   
   # read salmon output
-  tx_salmon_transcript <- 
-    tximport(salmon_quant_files, 
-             type = "salmon", txIn = T, txOut = T,
-             countsFromAbundance = "no")
+  tx_salmon_transcript <- salmon_quant_files %>% 
+    tximport(type="salmon", txIn=T, txOut=T,
+             countsFromAbundance="no")
   
   # annotate transcript
   cat("get trancript level expression\n")
@@ -222,9 +145,9 @@ if(dir.exists(params$salmon_dir)) {
     mutate(across(where(is.numeric), \(x)round(x, 2)))
   
   # write annotated expression file
-  write_xlsx(
-    list(tpm=transcript_tpm_anno, counts=transcript_counts_anno), 
-    path = file.path(params$quantification_dir, 
+  list(tpm=transcript_tpm_anno, 
+       counts=transcript_counts_anno) %>% 
+    export(file.path(params$quantification_dir, 
                      str_c(Sys.Date(), "_transcript_expression.xlsx")))
   
 } else {
@@ -235,16 +158,12 @@ if(dir.exists(params$salmon_dir)) {
 
 
 ## Gene quantification
-
 ```{r gene_level_quantification}
 if(exists("tx_salmon_transcript")) {
   
   cat("summarize to gene level expression\n")
-  tx_salmon_gene <- 
-    summarizeToGene(tx_salmon_transcript, 
-                    t2g, 
-                    ignoreTxVersion = TRUE, 
-                    countsFromAbundance = "no")
+  tx_salmon_gene <- tx_salmon_transcript %>% 
+    summarizeToGene(t2g, ignoreTxVersion=T, countsFromAbundance="no")
   
   # annotate gene
   gene_counts_anno <- tx_salmon_gene$counts %>% 
@@ -258,9 +177,9 @@ if(exists("tx_salmon_transcript")) {
     mutate(across(where(is.numeric), ~ round(.x, 2)))
   
   # write annotated expression file
-  write_xlsx(
-    list(tpm=gene_tpm_anno, counts=gene_counts_anno),
-    path = file.path(params$quantification_dir, 
+  list(tpm=gene_tpm_anno, 
+       counts=gene_counts_anno) %>% 
+    export(file.path(params$quantification_dir, 
                      str_c(Sys.Date(), "_gene_expression.xlsx")))
   
   cat("------------------\n") 
@@ -270,75 +189,27 @@ if(exists("tx_salmon_transcript")) {
 
 
 ## Gene quantification from BAM (Optional)
-
 ```{r gene_quantification_from_bam}
-if(params$quant_from_bam) {
+if(params$bam_count_dir) {
   if(!(list.files(params$quantification_dir) %>%
        str_detect("_gene_expression_bam.xlsx") %>% 
        any())) {
     
     cat("\n------------------\n")
-    cat("featurcounts gene level quantification from bam\n")
-    
-    if(params$lib_type_featurecounts=="None") {
-      # infer strandness from salmon log file
-      salmon_log <- 
-        file.path(params$salmon_dir, 'salmon.log') %>% 
-        read_lines(n_max = 100, progress = FALSE)
-      
-      lib_type_salmon <- salmon_log %>% 
-        str_detect(
-          fixed("Automatically detected most likely library type as ")) %>%
-        which() %>% salmon_log[.] %>% 
-        str_split(pattern=fixed(
-          "Automatically detected most likely library type as "), 
-          simplify = TRUE) %>%
-        .[2] %>% 
-        str_trim()
-      
-      lib_type_featurecounts <- case_when(
-        lib_type_salmon == "IU" ~ 0,
-        lib_type_salmon == "ISR" ~ 2,
-        lib_type_salmon == "ISF" ~ 1)
-      cat(str_c("featurecounts strandness inferred from salmon log as: ",
-                lib_type_featurecounts, "\n"))
-    } else {
-      lib_type_featurecounts <- params$lib_type_featurecounts
-    }
-
-    cat(str_c("log file can be found at: ", 
-              file.path(params$quantification_dir, "featurcounts.log\n\n")))
-    
-    if(!dir.exists(params$quantification_dir))
-      dir.create(params$quantification_dir)
-    
-    if(file.exists(
-      file.path(params$quantification_dir, 'gene_featurecounts.txt'))) {
-      cat(str_c("file was found, skip featurcounts quantification\n"))
-    } else {
-      tic()
-      featurcounts_args <- str_glue("-T {params$thread} -s {lib_type_featurecounts} -t exon -g gene_id -Q 20 -p -C --donotsort -a {gtf_file} -o {file.path(params$quantification_dir, 'gene_featurecounts.txt')} {file.path(params$bam_dir, fastq_basenames, str_c(fastq_basenames, '.bam'))} 2>> {file.path(params$quantification_dir, 'featurcounts.log')}")
-      system2(featurecounts_path, args = featurcounts_args)
-      toc()
-    }
-    
-    
-    ####### add annotation info to featurecounts output
     cat("\nfeaturcounts gene annoation\n")
     gene_count_featurecounts <- suppressMessages(
-      read_table2(paste0(params$quantification_dir, "/gene_featurecounts.txt"), 
-                  comment = "#")) %>%
+      read_table2(paste0(params$quantification_dir, "/gene_featurecounts.txt"), comment="#")) %>%
       dplyr::select(-Chr, -Start, -End, -Strand)
     
     # simplify colnames
     colnames(gene_count_featurecounts)[-1:-2] <-
       map_chr(colnames(gene_count_featurecounts)[-1:-2], 
-              ~ str_split(.x, "/", simplify = TRUE)[2])
+              ~ str_split(.x, "/", simplify=TRUE)[2])
     
     # simplify rownames
     gene_count_featurecounts$Geneid <- 
       map_chr(gene_count_featurecounts$Geneid, 
-              ~ str_split(.x, "[.]", simplify = TRUE)[1])
+              ~ str_split(.x, "[.]", simplify=TRUE)[1])
     
     # check columns identity
     if(!setequal(colnames(gene_count_featurecounts)[-1:-2], sample$project_id))
@@ -371,8 +242,8 @@ if(params$quant_from_bam) {
       gene_count_featurecounts %>%
       pivot_longer(3:ncol(.), names_to="sample", values_to="counts") %>%
       group_by(sample) %>%
-      mutate(tpm = tpm(counts, Length), counts = NULL, Length = NULL) %>%
-      pivot_wider(names_from = "sample", values_from = "tpm") %>%
+      mutate(tpm=tpm(counts, Length), counts=NULL, Length=NULL) %>%
+      pivot_wider(names_from="sample", values_from="tpm") %>%
       # annotation
       right_join(gene_annotation, ., by=join_by(ensembl_id=Geneid)) %>%
       mutate(across(where(is.numeric), ~ round(.x, 2)))
@@ -387,7 +258,7 @@ if(params$quant_from_bam) {
     write_xlsx(
       list(tpm=gene_tpm_featurecounts_anno, 
            counts=gene_count_featurecounts_anno),
-      path = file.path(params$quantification_dir,
+      path=file.path(params$quantification_dir,
                        str_c(Sys.Date(),"_gene_expression_bam.xlsx")))
     
     cat("------------------\n")

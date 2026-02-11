@@ -2,14 +2,15 @@
 title: "RNAseq Pathway Enrichment Analysis"
 author: "Hao He"
 date: "`r Sys.time()`"
-format: html
 editor_options:
-  # output in console or inline
   chunk_output_type: console
 params:
-  # sample info file located in root_dir
-  save_Rdata: TRUE
-  species: "hs" # hs or mm
+  # project directory
+  root_dir: "D:\\20260211 RNA seq"
+  # hs or mm
+  species: "hs" 
+  # general setting
+  samplesheet: "samplesheet.csv" 
   deg_padj: 0.01
   deg_fc: 1.5
   deg_threshold: 2 # tpm threshold at least in one group for plot heatmmap
@@ -18,38 +19,18 @@ params:
   wald_test_suffix: "_wald_result.xlsx" 
   expr_file_suffix: "_norm_expression.xlsx"
   quantification_dir: "quantification"
-  sample_info_file: "sample_info.xlsx" 
 --- 
 
 # Setup
 ```{r, include=FALSE, cache = FALSE}
 # options("repos" = c(CRAN = "http://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
 # options(BioC_mirror = "http://mirrors.tuna.tsinghua.edu.cn/bioconductor")
-f_path <- rstudioapi::getActiveDocumentContext()$path |> dirname()
-setwd(dirname(f_path))
-knitr::opts_knit$set(root.dir=dirname(f_path))
-knitr::opts_chunk$set(echo = TRUE, results = "hold", cache = TRUE)
+script_path <- rstudioapi::getActiveDocumentContext()$path |> dirname()
+source(file.path(script_path, "RNAseq_helper.R"))
 
-# devtools::install_github("junjunlab/ClusterGVis")
-# require(OmnipathR)
-# library(progeny)
-# library(decoupleR)
-library(furrr)
-plan(multisession, workers=8)
-# plan(sequential)
-
-# load package
-invisible(sapply(
-  c("tidyverse","readxl","writexl","msigdbr","clusterProfiler","GSVA",
-    "RColorBrewer","ggrepel","enrichplot","cowplot","pheatmap","pathview",
-    "factoextra","ComplexHeatmap","GseaVis","aPEAR","patchwork"), 
-  function(x) library(x, character.only=T)))
-print(getwd())
-```
-
-```{r}
-# load help function
-source("scripts/RNAseq_helper.R")
+# knitr::opts_knit$set(root.dir=dirname(f_path))
+setwd(params$root_dir)
+knitr::opts_chunk$set(echo=TRUE, results="hold", cache=TRUE)
 
 species <- params$species
 deg_padj <- params$deg_padj
@@ -60,31 +41,37 @@ wald_test_suffix <- params$wald_test_suffix
 enrichment_dir <- params$enrichment_dir
 expr_file_suffix <- params$expr_file_suffix
 quantification_dir <- params$quantification_dir
-sample_info_file <- params$sample_info_file
-save_Rdata <- params$save_Rdata
+samplesheet <- params$samplesheet
 
-if(!dir.exists(enrichment_dir)) dir.create(enrichment_dir)
+# require(OmnipathR)
+# library(progeny)
+# library(decoupleR)
+library(tidyverse)
+library(msigdbr)
+library(clusterProfiler)
+library(GSVA)
+library(enrichplot)
+library(pathview)
+library(pheatmap)
+library(factoextra)
+library(ComplexHeatmap)
+library(GseaVis)
+require(smerc)
+require(circlize)
+#devtools::install_github('ievaKer/aPEAR')
+library(aPEAR)
+library(patchwork)
+library(rio)
+options(rio.import.class='tbl')
+library(furrr)
+plan(multisession, workers=8)
+# plan(sequential)
 ```
 
-# Metadata
+
 ## read sample info
 ```{r}
-# read sample info
-group_cols <- normalizePath(sample_info_file) %>% 
-  read_xlsx(sheet="contrast", range="A1:A100", col_types="text") %>% 
-  pull(comparison) %>% 
-  na.omit() %>% 
-  as.character()
-
-sample <- normalizePath(sample_info_file) %>% 
-  read_xlsx(sheet="sample", col_types="text") %>% 
-  filter(include=="yes") %>% 
-  .[, c("sample_name", group_cols)] %>% 
-  # column_to_rownames("sample_name") %>% 
-  unite("contrast", !sample_name, sep = ".", remove = F) %>% 
-  mutate(contrast=factor(contrast, unique(.[["contrast"]])))
-
-head(sample)
+sample <- import(samplesheet)
 ```
 
 ## read expression
@@ -92,15 +79,15 @@ head(sample)
 # all deg must be within expr filtered mat
 expr_file <- list.files(
   quantification_dir, expr_file_suffix, full.names = T) %>% 
-  str_subset("^[^~]") %>% last()
+  str_subset("^[^~]") %>% last() %>% print()
 
 # convert to matrix
 use_data <- "tpm" # tpm, vst, counts_norm
-expr_data <- read_xlsx(expr_file, use_data) %>%
-    select(all_of(c("symbol", sample$sample_name))) %>%
+expr_data <- import(expr_file, which=use_data) %>%
+    select(all_of(c("symbol", sample$sample))) %>%
   # filter by expr
   filter_df_by_group(
-    sample[["contrast"]] %>% set_names(sample$sample_name), 
+    sample[["group"]] %>% set_names(sample$sample), 
     threshold = deg_threshold) %>% 
   filter(!is.na(symbol)) %>%
   distinct(symbol, .keep_all=T)
@@ -116,13 +103,13 @@ expr_data[1:5,1:5]
 ```{r}
 # get wald test result file
 wald_test_file <- list.files(deseq2_dir, wald_test_suffix, full.names = T) %>% 
-  str_subset("^[^~]") %>% last()
+  str_subset("^[^~]") %>% last() %>% print()
 
 # read multi-sheet data
-comparison <- excel_sheets(wald_test_file)
+comparison <- readxl::excel_sheets(wald_test_file)
 cat(str_glue("{str_c(comparison, collapse='\n')}"))
 wald_test <- comparison %>% set_names(comparison) %>% 
-  map(\(x) read_xlsx(wald_test_file, x) %>% 
+  map(\(x) import(wald_test_file, which=x) %>% 
         # order by stats
         arrange(desc(stat), pvalue) )
 
@@ -151,12 +138,14 @@ if(!exists("genesets")) {
   print("prepare term2gene geneset from msigdbr")
   # msigdbr::msigdbr_show_species()
   # msigdbr::msigdbr_collections()
-  msigdb <- msigdbr::msigdbr(
-    species = if_else(species=="hs", "Homo sapiens", "Mus musculus"))
+  
+  # msigdb <- msigdbr::msigdbr(
+  #   species = if_else(species=="hs", "Homo sapiens", "Mus musculus"))
+  
   ## subset genesets
   genesets <- list(
     ## H
-    Hallmark = filter(msigdb, gs_cat == "H")
+    # Hallmark = filter(msigdb, gs_cat == "H")
     ## GO
     # GOBP = filter(msigdb, gs_subcat == "GO:BP")
     # GOMF = filter(msigdb, gs_subcat == "GO:MF"),
@@ -242,7 +231,7 @@ mark_gene <- anno_mark(
 ### annotation
 ```{r}
 # sample anno
-anno_col_list <- annoCol_from_sample_info(sample, split_by="contrast", annotate_col=NULL)
+anno_col_list <- annoCol_from_sample_info(sample, split_by="group", annotate_col=NULL)
 
 # cluster by row
 anno_cl_list <- annoRow_from_cluster(mat, k)
@@ -251,8 +240,8 @@ anno_cl_list <- annoRow_from_cluster(mat, k)
 box_color <- anno_col_list$sample_split_color
 plot_boxtrend <- as_tibble(mat, rownames="symbol") %>% 
   bind_cols(cluster=anno_cl_list$cl$cluster, .) %>% 
-  pivot_longer(!c(cluster, symbol), names_to="sample_name") %>% 
-  left_join(sample, by = join_by(sample_name)) %>% 
+  pivot_longer(!c(cluster, symbol), names_to="sample") %>% 
+  left_join(sample, by = join_by(sample)) %>% 
   split(., .[["cluster"]]) %>% 
   map(\(x) ggplot(x) + geom_boxplot(
     aes(contrast, value), 
@@ -276,7 +265,7 @@ anno_boxtrend <- anno_gglist(
 # anno_BoxTrend(
 #   mat, 
 #   align_to=anno_cl_list$align_to, cl=anno_cl_list$cl, 
-#   sample_df=sample, group_name="contrast", 
+#   sample_df=sample, group_name="group", 
 #   group_color=anno_col_list$sample_split_color,
 #   # panel size, gap, width, fill, color
 #   ggplot.panel.arg = c(2, 0.4, 4, "grey90","grey30"))
@@ -305,7 +294,6 @@ anno_hallmark <- anno_gglist(
   align_to=anno_cl_list$align_to, gglist=plot_hallmark, 
   # panel size, gap, width, fill, color
   ggplot.panel.arg = c(2, 0.4, 6, "grey90","grey30"))
-
 
 # add row annotation together
 right_annotation = rowAnnotation(
@@ -361,7 +349,7 @@ ht_cluster <- mat[row_ord$row_order, unlist(column_order(p))] %>%
   round(3) %>% 
   cbind(cluster=row_ord$cluster, .) %>% 
   as_tibble(rownames="symbol")
-write_xlsx(ht_cluster, str_glue(
+export(ht_cluster, str_glue(
   "{enrichment_dir}/{Sys.Date()}_deg_all_cluster.xlsx"))
 ```
 
@@ -372,7 +360,7 @@ write_xlsx(ht_cluster, str_glue(
 enrich_result_ora <- enrich_ora_list(wald_test_sig, genesets)
 
 # save data
-write_xlsx(map(enrich_result_ora, \(x) as_tibble(x@result)), 
+export(map(enrich_result_ora, \(x) as_tibble(x@result)), 
            str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_ora.xlsx"))
 # save plot
 n_col <- length(enrich_result_ora) #if_else( > 1, 2, 1)
@@ -383,12 +371,11 @@ map(enrich_result_ora,
             ncol = n_col, 
             axis = "tblr", align = "hv", 
             label_size = 8, scale = 0.9) %>% 
-  ggsave2(str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_ora.pdf"),
+  ggsave(str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_ora.pdf"),
           .,
           width=n_col*6, 
           height=length(genesets)*4, 
           limitsize = F)
-
 ```
 
 ### visNetwork
@@ -425,7 +412,7 @@ plot_grid(plotlist = plist,
           ncol = 1, 
           axis = "tblr", align = "hv", 
           label_size = 8, scale = 0.9) %>% 
-  ggsave2(str_glue(
+  ggsave(str_glue(
     "{enrichment_dir}/{Sys.Date()}_enrichment_ora_visNetwork.pdf"),
     .,
     width=10, 
@@ -440,8 +427,8 @@ plot_grid(plotlist = plist,
 enrich_result_gsea <- enrich_gsea_list(genelist_ranked, genesets)
 
 # save data
-write_xlsx(map(enrich_result_gsea, \(x) as_tibble(x@result)), 
-           str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_gsea.xlsx"))
+export(map(enrich_result_gsea, \(x) as_tibble(x@result)), 
+       str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_gsea.xlsx"))
 # save plot
 n_col <- length(enrich_result_gsea) #if_else( > 1, 2, 1)
 map(enrich_result_gsea, 
@@ -451,7 +438,7 @@ map(enrich_result_gsea,
             ncol = n_col, 
             axis = "tblr", align = "hv", 
             label_size = 8, scale = 0.9) %>% 
-  ggsave2(str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_gsea.pdf"),
+  ggsave(str_glue("{enrichment_dir}/{Sys.Date()}_enrichment_gsea.pdf"),
           .,
           width=n_col*6, 
           height=length(genesets)*4, 
@@ -492,13 +479,14 @@ plot_grid(plotlist = plist,
           ncol = 1, 
           axis = "tblr", align = "hv", 
           label_size = 8, scale = 0.9) %>% 
-  ggsave2(str_glue(
+  ggsave(str_glue(
     "{enrichment_dir}/{Sys.Date()}_enrichment_gesa_visNetwork.pdf"),
     .,
     width=10, 
     height=length(enrich_result_gsea)*10, 
     limitsize = F)
 ```
+
 
 ### compare gseaplot
 ```{r}
@@ -737,7 +725,7 @@ pathway_res %>%
         legend.position='top',
         panel.grid = element_blank(),
         strip.background = element_rect(fill=NA))
-ggsave2(str_glue(
+ggsave(str_glue(
   "{enrichment_dir}/{Sys.Date()}_activity_progeny_barplot.pdf"), 
   width=12, height=6)
 
@@ -806,7 +794,7 @@ while(dev.cur() != 1) dev.off()
 #         legend.position='top',
 #         panel.grid = element_blank(),
 #         strip.background = element_rect(fill=NA))
-# ggsave2(str_glue(
+# ggsave(str_glue(
 #   "{enrichment_dir}/{Sys.Date()}_activity_collectri_barplot.pdf"),
 #   width=12, height=6)
 
@@ -902,24 +890,10 @@ wald_test_deg_in_poi %>%
         geom_hline(yintercept = 0, linetype = 'dotted')) %>% 
   plot_grid(plotlist = ., labels = names(.), label_size = 8)
 
-ggsave2(str_glue(
+ggsave(str_glue(
   "{enrichment_dir}/{Sys.Date()}_activity_{poi}.pdf"), 
   width=9, height=9)
 
-```
-
-
-# Save data
-```{r}
-if(save_Rdata) {
-  getwd()
-  save.image(str_glue("{Sys.Date()}_enrichment.RData"))
-}
-
-# load data
-# list.files(pattern = "^RNAseq_Enrichment_.*RData$")
-# load(list.files(pattern = "^RNAseq_Enrichment_.*RData$")[1])
-# load("RNAseq_Enrichment_2021-01-28.RData")
 ```
 
 

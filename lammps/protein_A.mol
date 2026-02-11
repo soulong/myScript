@@ -1,0 +1,12 @@
+# Protein A: 3 beads
+3 atoms
+2 bonds
+
+Atoms
+1 1 0.0  0.0  0.0  0.0   # PS bead
+2 2 0.0  1.0  0.0  0.0   # binding bead
+3 3 0.0 -1.0  0.0  0.0   # other bead
+
+Bonds
+1 1 1 2
+2 1 2 3

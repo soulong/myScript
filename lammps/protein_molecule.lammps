@@ -1,0 +1,397 @@
+#==============================================================================
+# LAMMPS INPUT SCRIPT: Meso-Scale Protein Phase Separation Simulation
+# With Small Molecule Bridging Between Proteins
+#==============================================================================
+#
+# SIMULATION OVERVIEW:
+# --------------------
+# This script simulates a 2D system containing:
+#   - Two types of proteins (Protein A and Protein B), each with 3 beads
+#   - Small molecules (dimers) that can bind to both protein types
+#   - Phase separation behavior driven by specific bead-bead interactions
+#   - Reversible binding/unbinding between small molecules and proteins
+#
+# UNIT SYSTEM:
+# ------------
+# Using 'lj' reduced units where:
+#   - Energy epsilon = 1.0 (reference energy unit)
+#   - Distance sigma = 1.0 (reference length unit)
+#   - Mass m = 1.0 (reference mass unit)
+#   - Temperature T* = k_B T / epsilon (reduced temperature)
+#   - Time tau = sigma * sqrt(m/epsilon) (reference time)
+#
+# Author: Matrix Agent
+#==============================================================================
+
+#------------------------------------------------------------------------------
+# SECTION 1: SIMULATION CONTROL VARIABLES
+# Adjust these parameters to modify the simulation behavior
+#------------------------------------------------------------------------------
+
+#--- Box and Density Parameters ---
+variable LX equal 100.0    # Box length in X direction (reduced units)
+variable LY equal 100.0    # Box length in Y direction (reduced units)
+variable BOX_SIZE equal ${LX}*${LY}  # Total area (for density calculations)
+
+#--- Particle Counts (ADJUSTABLE) ---
+variable N_PROTEIN_A equal 150    # Number of Protein A molecules (each has 3 beads)
+variable N_PROTEIN_B equal 150    # Number of Protein B molecules (each has 3 beads)
+variable N_SMALL equal 600        # Number of small molecules (each has 2 beads)
+
+#--- Reduced Units Conversion Reference ---
+variable SIGMA_REF equal 1.0      # Reference particle diameter (LJ parameter)
+variable EPSILON_REF equal 1.0    # Reference well depth (LJ parameter)
+
+#--- Derived Quantities (DO NOT MODIFY) ---
+variable N_ATOMS_TOTAL equal (${N_PROTEIN_A}*3 + ${N_PROTEIN_B}*3 + ${N_SMALL}*2)
+variable DENSITY equal ${N_ATOMS_TOTAL}/${BOX_SIZE}
+
+#==============================================================================
+# SECTION 2: BINDING MECHANISM OPTIONS
+# Choose ONE option by setting the corresponding variable to 1, others to 0
+#==============================================================================
+
+variable BIND_HARMONIC equal 1    # 1 = use harmonic bonds, 0 = do not use
+variable BIND_LJ equal 0          # 1 = use LJ attractions, 0 = do not use
+variable BIND_TABLE equal 0       # 1 = use tabulated potentials, 0 = do not use
+variable BIND_HYBRID equal 0      # 1 = use hybrid approach, 0 = do not use
+
+#==============================================================================
+# SECTION 3: PHASE SEPARATION MECHANISM OPTIONS
+# Choose ONE option by setting the corresponding variable to 1, others to 0
+#==============================================================================
+
+variable PS_LJ equal 1            # 1 = use LJ attraction, 0 = do not use
+variable PS_PATCHY equal 0        # 1 = use patchy model, 0 = do not use
+variable PS_SQUARIC equal 0       # 1 = use squaric-like model, 0 = do not use
+variable PS_SIRAH equal 0         # 1 = use SIRAH-style short-range, 0 = do not use
+
+#==============================================================================
+# SECTION 4: BOUND STATE DEFINITION OPTIONS
+# Choose ONE option by setting the corresponding variable to 1, others to 0
+#==============================================================================
+
+variable BOUND_DIST equal 1       # 1 = use distance threshold, 0 = do not use
+variable BOUND_DIST_THRESHOLD equal 1.5  # Distance threshold in reduced units
+variable BOUND_ENERGY equal 0     # 1 = use energy threshold, 0 = do not use
+variable BOUND_ENERGY_THRESHOLD equal -2.0  # Energy threshold
+variable BOUND_COORD equal 0      # 1 = use coordination threshold, 0 = do not use
+variable BOUND_COORD_MIN equal 2  # Minimum coordination number
+variable BOUND_COMBINED equal 0   # 1 = use combined criteria, 0 = do not use
+
+#==============================================================================
+# SECTION 5: PHYSICAL PARAMETERS
+#==============================================================================
+
+variable TEMP equal 1.0           # Reduced temperature (kT/epsilon)
+variable TSTART equal ${TEMP} 
+variable TSTOP equal ${TEMP}      
+
+# Phase Separation Strength
+variable PS_STRENGTH equal 2.0    
+variable PS_AA_STRENGTH equal 1.5 # Protein A-A interactions
+variable PS_BB_STRENGTH equal 1.5 # Protein B-B interactions
+variable PS_AB_STRENGTH equal 2.0 # A-B cross interactions
+
+# Binding Affinity Parameters
+variable BIND_STRENGTH_A equal 5.0    # Binding strength to Protein A
+variable BIND_STRENGTH_B equal 5.0    # Binding strength to Protein B
+variable BIND_CUTOFF equal 1.12       # Distance cutoff for binding
+variable BIND_K equal 100.0           # Force constant for harmonic binding
+variable BIND_R0 equal 1.0            # Equilibrium bond length
+
+# Interaction Cutoffs
+variable LJ_CUTOFF equal 2.5          # Standard LJ cutoff
+variable PS_CUTOFF equal 3.0          # Phase separation interaction cutoff
+variable REPULSION_STRENGTH equal 1.0 
+
+#==============================================================================
+# SECTION 6: SIMULATION TIMING PARAMETERS
+#==============================================================================
+
+variable N_STEPS equal 1000000      # Total number of timesteps
+variable DT equal 0.005             # Timestep size
+variable N_EQUIL equal 50000        # Equilibration timesteps
+variable DUMP_TRAJ_FREQ equal 1000  # Trajectory dump frequency
+variable DUMP_RESTART equal 50000   # Restart file frequency
+variable LOG_FREQ equal 100         
+variable THERMO_FREQ equal 1000     
+
+#==============================================================================
+# SECTION 7: ANALYSIS PARAMETERS
+#==============================================================================
+
+variable CLUSTER_FREQ equal 1000    
+variable MSD_FREQ equal 1000        
+variable MSD_MAXLAG equal 10000     
+variable MSD_NWINDOW equal 100      
+variable BINDING_FREQ equal 1000    
+variable ORDER_PARAM_FREQ equal 500 
+
+#==============================================================================
+# SECTION 8: INITIALIZATION
+#==============================================================================
+
+clear
+units lj
+dimension 2
+#newton flag
+#newton flag1 flag2
+#flag = on or off for both pairwise and bonded interactions
+#flag1 = on or off for pairwise interactions
+#flag2 = on or off for bonded interactions
+newton on on
+
+#==============================================================================
+# SECTION 9: CREATE SIMULATION BOX AND REGIONS
+#==============================================================================
+
+variable Z_SIZE equal 1.0           # Box size in Z direction (2D simulation)
+
+# Center region boundaries (calculated from box dimensions)
+variable X_CENTER_MIN equal ${LX}*0.4
+variable X_CENTER_MAX equal ${LX}*0.6
+variable Y_CENTER_MIN equal ${LY}*0.4
+variable Y_CENTER_MAX equal ${LY}*0.6
+
+# Define simulation regions FIRST (before create_box)
+region sim_region block 0 ${LX} 0 ${LY} 0 ${Z_SIZE} units box
+region center_region block ${X_CENTER_MIN} ${X_CENTER_MAX} ${Y_CENTER_MIN} ${Y_CENTER_MAX} 0 ${Z_SIZE} units box
+
+# Create box with region ID
+create_box 8 sim_region             # 8 atom types
+
+#==============================================================================
+# SECTION 10: DEFINE ATOM TYPES
+#==============================================================================
+
+# Protein A Bead Types
+# Type 1: Protein A - Phase Separation Domain
+type/atom/ps 1 1
+# Type 2: Protein A - Binding Domain
+type/atom/bind 1 2
+# Type 3: Protein A - Functional Domain
+type/atom/func 1 3
+
+# Protein B Bead Types
+type/atom/ps 2 4
+type/atom/bind 2 5
+type/atom/func 2 6
+
+# Small Molecule Bead Types
+type/atom/sm_head 1 7
+type/atom/sm_head 2 8
+
+#==============================================================================
+# SECTION 11: DEFINE MOLECULES
+#==============================================================================
+
+# Protein A Molecule Definition
+molecule protein_a 3
+    1  1  0.0  0.0  0.0      # PS domain
+    2  2  1.0  0.0  0.0      # Bind domain
+    3  3  2.0  0.0  0.0      # Func domain
+
+# Bond styles for Protein A
+bond_style harmonic
+bond_coeff 1 ${BIND_K} ${BIND_R0}
+bond_coeff 2 ${BIND_K} ${BIND_R0}
+
+# Protein B Molecule Definition
+molecule protein_b 3
+    1  4  0.0  0.0  0.0      # PS domain
+    2  5  1.0  0.0  0.0      # Bind domain
+    3  6  2.0  0.0  0.0      # Func domain
+
+bond_coeff 3 ${BIND_K} ${BIND_R0}
+bond_coeff 4 ${BIND_K} ${BIND_R0}
+
+# Small Molecule Definition
+molecule small_mol 2
+    1  7  0.0  0.0  0.0      # Head A
+    2  8  1.0  0.0  0.0      # Head B
+
+bond_style harmonic
+bond_coeff 5 ${BIND_K} ${BIND_R0}
+
+#==============================================================================
+# SECTION 12: NON-BONDED INTERACTIONS
+#==============================================================================
+
+pair_style lj/cut ${LJ_CUTOFF}
+
+# Interaction matrix - format: pair_coeff type1 type2 epsilon sigma cutoff
+# The third argument after epsilon is sigma (particle diameter)
+# Example: "1 1 1.0 1.0 2.5" means epsilon=1.0, sigma=1.0, cutoff=2.5
+
+if "${BIND_HARMONIC} == 1" then &
+    "pair_coeff * * 0.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 1 ${PS_AA_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 2 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 3 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 4 ${PS_AB_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 5 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 6 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 7 0.5 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 8 0.5 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 2 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 3 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 4 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 5 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 6 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 7 ${BIND_STRENGTH_A} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 8 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 3 3 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 3 4 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 3 5 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 3 6 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 3 7 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 3 8 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 4 ${PS_BB_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 5 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 6 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 7 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 8 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 5 5 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 5 6 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 5 7 ${BIND_STRENGTH_B} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 5 8 ${BIND_STRENGTH_B} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 6 6 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 6 7 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 6 8 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 7 7 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 7 8 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 8 8 1.0 1.0 ${LJ_CUTOFF}"
+
+# Alternative: LJ-based binding mechanism
+if "${BIND_LJ} == 1" then &
+    "pair_coeff * * 0.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 1 ${PS_AA_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 4 ${PS_BB_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 4 ${PS_AB_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 2 7 ${BIND_STRENGTH_A} 1.0 ${BIND_CUTOFF} &
+     pair_coeff 5 7 ${BIND_STRENGTH_B} 1.0 ${BIND_CUTOFF} &
+     pair_coeff 5 8 ${BIND_STRENGTH_B} 1.0 ${BIND_CUTOFF} &
+     pair_coeff 2 5 1.0 1.0 ${LJ_CUTOFF} &
+     pair_coeff 7 8 1.0 1.0 ${LJ_CUTOFF}"
+
+if "${PS_LJ} == 1" then &
+    "pair_style lj/cut ${LJ_CUTOFF} &
+     pair_coeff 1 1 ${PS_AA_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 4 4 ${PS_BB_STRENGTH} 1.0 ${LJ_CUTOFF} &
+     pair_coeff 1 4 ${PS_AB_STRENGTH} 1.0 ${LJ_CUTOFF}"
+
+#==============================================================================
+# SECTION 13: SPECIAL BONDS
+#==============================================================================
+
+special_bonds lj 0.0 0.0 0.5
+
+#==============================================================================
+# SECTION 14: CREATE ATOMS
+#==============================================================================
+
+create_atoms 0 random ${N_PROTEIN_A} 12345 sim_region mol protein_a 12345
+create_atoms 0 random ${N_PROTEIN_B} 12346 sim_region mol protein_b 12346
+create_atoms 0 random ${N_SMALL} 12347 sim_region mol small_mol 12347
+print "Total atoms created: ${N_ATOMS_TOTAL}"
+
+#==============================================================================
+# SECTION 15: MASS AND GROUPS
+#==============================================================================
+
+mass 1 1.0
+mass 2 1.0
+mass 3 1.0
+mass 4 1.0
+mass 5 1.0
+mass 6 1.0
+mass 7 1.0
+mass 8 1.0
+
+group protein_a type 1 2 3
+group protein_b type 4 5 6
+group small_mol type 7 8
+group ps_domain type 1 4
+group bind_domain type 2 5
+group func_domain type 3 6
+group all_proteins union protein_a protein_b
+group all_particles all
+
+#==============================================================================
+# SECTION 16: PAIR MODIFY AND SIMULATION SETTINGS
+#==============================================================================
+
+pair_modify shift yes
+pair_modify tail yes
+neigh_modify every 10 delay 0 check yes one 10000 page 100000
+
+velocity all create ${TSTART} 54321 dist gaussian
+
+# 2D simulation fix - prevents motion in Z direction
+fix restrain_z all enforce2d
+
+# Thermostat
+fix nvt all nvt temp ${TSTART} ${TSTOP} 10.0 tchain 2
+
+#==============================================================================
+# SECTION 17: DATA OUTPUT
+#==============================================================================
+
+log log.lammps append yes
+
+compute ke all ke/atom
+compute pe all pe/atom
+compute stress all stress/atom virial
+
+thermo ${THERMO_FREQ}
+thermo_style custom step time etotal ke pe temp press vol density
+
+dump restart all custom ${DUMP_RESTART} restart.*.lammpstrj id type x y z vx vy vz
+dump traj all atom ${DUMP_TRAJ_FREQ} dump.lammpstrj
+
+#==============================================================================
+# SECTION 18: ANALYSIS COMPUTES
+#==============================================================================
+
+compute clust all cluster/atom 1.5
+compute coord all coord/atom 1.5
+
+compute msd_protein_a protein_a msd
+compute msd_protein_b protein_b msd
+compute msd_small small_mol msd
+
+fix msd_output_protein_a all print ${MSD_FREQ} "$(step) $(time) $(c_msd_protein_a[1]) $(c_msd_protein_a[2]) $(c_msd_protein_a[3]) $(c_msd_protein_a[4])" screen no file msd_protein_a.txt
+fix msd_output_protein_b all print ${MSD_FREQ} "$(step) $(time) $(c_msd_protein_b[1]) $(c_msd_protein_b[2]) $(c_msd_protein_b[3]) $(c_msd_protein_b[4])" screen no file msd_protein_b.txt
+fix msd_output_small all print ${MSD_FREQ} "$(step) $(time) $(c_msd_small[1]) $(c_msd_small[2]) $(c_msd_small[3]) $(c_msd_small[4])" screen no file msd_small.txt
+
+compute rdf all rdf 100 1 1 1 4 4 4 7 7 8 8
+fix rdf_output all print ${CLUSTER_FREQ} "$(step) $(time) $(c_rdf[*])" screen no file rdf.txt
+
+if "${BOUND_DIST} == 1" then &
+    "variable bound_count equal count(c_clust > 0, ps_domain) &
+     fix bound_output all print ${BINDING_FREQ} '$(step) $(time) $(v_bound_count)' screen no file binding_occupancy.txt"
+
+#==============================================================================
+# SECTION 19: BINDING DYNAMICS
+#==============================================================================
+
+if "${BIND_HARMONIC} == 1 || ${BIND_HYBRID} == 1}" then &
+    "fix bond_create all bond/create 100 2 7 ${BIND_CUTOFF} 1 1 prob 100 &
+     fix bond_break all bond/break 100 2 7 ${BIND_CUTOFF} 1 1"
+
+#==============================================================================
+# SECTION 20: RUN SIMULATION
+#==============================================================================
+
+run ${N_STEPS}
+
+print ""
+print "=============================================="
+print "SIMULATION COMPLETE"
+print "=============================================="
+print ""
+
+#==============================================================================
+# END OF SCRIPT
+#==============================================================================

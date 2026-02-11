@@ -1,7 +1,11 @@
-# RNA-seq Pipeline Configuration File
-# Place this file in your working directory
+## RNA-seq Pipeline Configuration File
 
 # ============================= Basic Settings =============================
+# root directory of project
+root_dir: "/mnt/d/20260211 RNA seq"
+
+# Directory containing raw FASTQ files
+fastq_dir: 01.RawData
 
 # Species: "hs" (human), "mm" (mouse), "chm13" (T2T-CHM13)
 species: hs
@@ -9,14 +13,11 @@ species: hs
 # Sample sheet CSV file (must contain columns: sample,group,control,target,fq1,fq2)
 samplesheet: samplesheet.csv
 
-# Directory containing raw FASTQ files
-fastq_dir: 01.RawData
-
 # Output directory for all results
 outdir: result
 
 # Number of threads for parallel processing
-threads: 16
+threads: 8
 
 # Skip preprocessing steps, this is for running non-standard pipelines
 skip_preprocess: false
@@ -44,7 +45,7 @@ library_type: IU
 
 # Root directory containing genome indices
 # Modify this to match your system's index location
-index_rootdir: /mnt/f/index
+index_rootdir: /mnt/d/index
 
 # Expected directory structure under index_rootdir:
 #   index_rootdir/

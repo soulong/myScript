@@ -23,42 +23,71 @@ sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 
 # rename all file names under a directory
 # check first, then remove echo for real running
+# option 1
 for i in *target.sorted.bam$*;
 do
    echo "mv $i ${i%target.sorted.bam}sorted.bam"
    mv $i ${i%target.sorted.bam}sorted.bam
 done
+# option 2
+find . -type f -name "*Probabilities.tiff*" -print0 | while IFS= read -r -d '' file; do
+    # Get the directory and the filename separately
+    dir=$(dirname "$file")
+    old_name=$(basename "$file")
+    # Replace SIM² with SIM in the filename
+    new_name="${old_name//Probabilities.tiff/Probabilities.tif}"
+    # Rename the file
+    echo "Renaming: $old_name -> $new_name"
+    mv "$file" "$dir/$new_name"
+done
+
+
+################## miniforge ##################
+# auto activate conda in windows, run following in powershell with Admin mode
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+powershell -ExecutionPolicy ByPass -NoExit -Command "& 'C:\Users\haohe\miniforge3\shell\condabin\conda-hook.ps1' ; conda activate base"
+conda init powershell
+
+# export and import env
+mamba env export --no-builds | grep -v "^prefix: " > ngs.yml
+mamba env create -f ngs.yml -p ~/miniforge3/envs/ngs
+
+# mamba export all envs
+for env in $(mamba env list | cut -d" " -f1); do 
+   if [[ ${env:0:1} == "#" ]] ; then continue; fi;
+   mamba env export -n $env > ./${env}.yml
+done
+
+# mamba remove all installed package in base env
+mamba remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
+mamba remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
+
 
 ################## WSL ###############
 # mount a windows drive to wsl
-sudo mkdir /mnt/e
-sudo mount -t drvfs E: /mnt/e
-
+sudo mkdir -p /mnt/e && sudo mount -t drvfs E: /mnt/e
 # mount a windows share to wsl if already have access to share
 # use single quotes otherwise you will need to escape the backslashes
-sudo mkdir /mnt/mint
-sudo mount -t drvfs '\\10.36.172.157\mint' /mnt/mint
-
+sudo mkdir -p /mnt/f && sudo mount -t drvfs '\\100.66.1.2\f' /mnt/f
 ## remove a mounted driver
-sudo rm /mnt/driveX
-
-## export/import wsl image
-image_name=Ubuntu-24.04
-wsl --shutdown && wsl -l -v 
-wsl --export $image_name F:/wsl/${image_name}.tar
-wsl --import $image_name C:/wsl/ F:/wsl/${image_name}.tar --version 2
-wsl --unregister $image_name # release old image space
-
+sudo rmdir /mnt/driveX
+## get all wsl location
+Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss
 ## compact wsl image
-# in powershell, get all wsl location
-# Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss\
-# in powershell, first shtdown wsl2 by: wsl --shutdown
 diskpart
 select vdisk file="C:\Users\zhugy\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx"
 attach vdisk readonly
 compact vdisk
 detach vdisk
 exit
+## export wsl image 
+image_name=Ubuntu-24.04
+wsl --shutdown && wsl -l -v 
+wsl --export $image_name F:/wsl/${image_name}.tar
+## remove wsl image
+wsl --unregister $image_name # release old image space
+## import wsl iamge
+wsl --import $image_name C:/wsl/ "C:/Users/haohe/Desktop/Ubuntu-24.04.tar" --version 2
 
 
 ################## NGS ##################
@@ -80,26 +109,6 @@ plotHeatmap -m genes_protein_coding.gz -o genes_protein_coding.pdf --colorMap Rd
 # markdup
 picard -Xmx48G MarkDuplicates --INPUT $bam --OUTPUT ${prefix}.markdup.bam --REFERENCE_SEQUENCE $fasta --METRICS_FILE ${prefix}_markdup_metric.txt
 
-
-
-
-
-################## miniforge ##################
-# install mamba
-
-# export and import env
-mamba env export --no-builds | grep -v "^prefix: " > ngs.yml
-mamba env create -f ngs.yml -p ~/miniforge3/envs/ngs
-
-# mamba export all envs
-for env in $(mamba env list | cut -d" " -f1); do 
-   if [[ ${env:0:1} == "#" ]] ; then continue; fi;
-   mamba env export -n $env > ./${env}.yml
-done
-
-# mamba remove all installed package in base env
-mamba remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
-mamba remove `conda list|awk 'NR>3 {print $1}'|tr '\n' ' '`
 
     
 ################## run shinny APP ##################

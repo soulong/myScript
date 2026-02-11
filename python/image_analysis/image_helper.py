@@ -21,8 +21,11 @@ from glob import glob
 import pandas as pd
 import numpy as np
 from natsort import natsorted
-import imageio.v3 as iio
-import cv2
+try:
+    import imageio.v3 as iio
+except ImportError:
+    import imageio as iio
+# import cv2
 import scipy.ndimage as ndi
 from skimage.transform import resize as sk_resize
 from skimage.measure import regionprops, regionprops_table, label
@@ -108,46 +111,34 @@ def find_measurement_dirs(
     return natsorted(measurement_dirs, key=lambda p: str(p))
 
 
-
-
-def _parse_dataset_kwargs(s: str) -> dict:
-    """
-    Parse --dataset_kwargs with full support for:
-      - Proper JSON: null, true, false
-      - Python literals: None, True, False
-      - Mixed quotes and common typos
-    """
-    s = s.strip()
-    if not s or s == "{}" or s.lower() == "none":
+def parse_string_to_dict(s: str) -> dict:
+    # Remove outer braces and whitespace
+    s = s.strip().strip('{} ')
+    if not s:
         return {}
-
-    # Replace Python literals with JSON equivalents
-    replacements = {
-        "None": "null",
-        "True": "true",
-        "False": "false",
-    }
-    fixed = s
-    for py_val, json_val in replacements.items():
-        # Replace whole words only (avoid breaking strings like "my_None_file.tif")
-        fixed = re.sub(rf'\b{py_val}\b', json_val, fixed)
-
-    # Allow single quotes → double quotes
-    fixed = fixed.replace("'", '"')
-
-    try:
-        raw = json.loads(fixed)
-    except json.JSONDecodeError as e:
-        raise argparse.ArgumentTypeError(
-            f"Invalid --dataset_kwargs JSON: {e}\n"
-            f"   You typed: {s}\n"
-            f"   We tried : {fixed}\n"
-            f"   Tip: Use this format:\n"
-            f"       --dataset_kwargs '{{\"mask_suffix\": None, \"remove_na_row\": False}}'"
-        ) from e
-
-    # Convert JSON null → Python None
-    return {k: None if v is None else v for k, v in raw.items()}
+    # Split by top-level commas (safe here because no values contain commas)
+    pairs = s.split(',')
+    result = {}
+    for pair in pairs:
+        if ':' not in pair:
+            continue
+        key, value = pair.split(':', 1)          # split only on first colon
+        key = key.strip()
+        value = value.strip()
+        
+        # Convert True/False/None to proper Python types
+        if value == 'True':
+            value = True
+        elif value == 'False':
+            value = False
+        elif value == 'None':
+            value = None
+        # else: leave as string (including complex regex)
+        
+        result[key] = value
+    
+    # return {k: None if v is None else v for k, v in raw.items()}
+    return result
     
 
 def images_to_dataset(
@@ -274,7 +265,7 @@ def images_to_dataset(
 
             if mask_extractor is None:
                 mask_extractor = image_extractor.replace("(?P<self_generated>.*)", "_cp_masks_(?P<mask_name>.*)")
-                print("set mask_extractor:", mask_extractor)
+                # print("set mask_extractor:", mask_extractor)
             
             mask_meta = mask_df["filename"].str.extract(mask_extractor + re.escape(mask_suffix))
             # print(mask_meta)
@@ -638,13 +629,18 @@ def radial_distribution(mask, image, num_bins=5, display=False):
     # A better way to get visual centroid 
     # https://stackoverflow.com/questions/1203135/what-is-the-fastest-way-to-find-the-visual-center-of-an-irregularly-shaped-pol
     # mask = draw_contour_on_mask((H,W), cnt)
-    # cv2.distanceTransform don't accept bool type
-    if mask.dtype == bool:
-        mask = mask.astype(np.uint8)
-    dist_img = cv2.distanceTransform(mask, distanceType=cv2.DIST_L2, maskSize=5).astype(np.float32)
-    center_y, center_x = np.where(dist_img==dist_img.max())
-    center_y, center_x = center_y.mean(), center_x.mean() # there are sometimes cases where there are multiple values returned for the visual center
-    # print(center_y, center_x)
+    
+    dist_img = ndi.distance_transform_edt(mask)
+    center_y, center_x = np.where(dist_img == dist_img.max())
+    center_y, center_x = center_y.mean(), center_x.mean()
+    
+    # # cv2.distanceTransform don't accept bool type
+    # if mask.dtype == bool:
+    #     mask = mask.astype(np.uint8)
+    # dist_img = cv2.distanceTransform(mask, distanceType=cv2.DIST_L2, maskSize=5).astype(np.float32)
+    # center_y, center_x = np.where(dist_img==dist_img.max())
+    # center_y, center_x = center_y.mean(), center_x.mean() # there are sometimes cases where there are multiple values returned for the visual center
+    # # print(center_y, center_x)
     
     # Calculate distances from center for all pixels in mask
     y, x = np.ogrid[:image.shape[0], :image.shape[1]]
@@ -1025,7 +1021,7 @@ def main() -> None:
                             "  --dataset_kwargs '{\"mask_suffix\": None, \"remove_na_row\": False}'\n"
                             "  --dataset_kwargs '{\"cellprofiler_style\": True}'")
     args = parser.parse_args()
-    user_dataset_kwargs = _parse_dataset_kwargs(args.dataset_kwargs)
+    user_dataset_kwargs = parse_string_to_dict(args.dataset_kwargs)
     # print(user_dataset_kwargs)
 
     root_dir = Path(args.root_dir)

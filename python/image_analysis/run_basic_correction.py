@@ -16,13 +16,12 @@ from pathlib import Path
 from typing import List, Optional, Dict
 
 import numpy as np
-from basicpy import BaSiC
 from tifffile import imread, imwrite
 from tqdm import tqdm
 from shutil import copy
-
-from image_helper import setup_logger, find_measurement_dirs, images_to_dataset, _parse_dataset_kwargs
-
+from basic.basic import BaSiC
+# from basicpy import BaSiC
+from image_helper import setup_logger, find_measurement_dirs, images_to_dataset, parse_string_to_dict
 
 # ==============================
 # BaSiC Helpers
@@ -40,28 +39,24 @@ def _basic_fit(
     if len(image_paths) > n_image:
         image_paths = random.sample(image_paths, k=n_image)
 
-    try:
-        imgs = np.stack([imread(p) for p in image_paths])
-        basic = BaSiC(
-            get_darkfield=enable_darkfield,
-            smoothness_flatfield=1,
-            smoothness_darkfield=1,
-            working_size=working_size,
-            max_workers=8,
-        )
-        basic.fit(imgs)
-        logger.info(f"BaSiC model fitted on {len(imgs)} images.")
-        return basic
-    except Exception as e:
-        logger.error(f"BaSiC fitting failed: {e}")
-        return None
+    imgs = np.stack([imread(p) for p in image_paths])
+    basic = BaSiC(
+        get_darkfield=enable_darkfield,
+        smoothness_flatfield=1,
+        smoothness_darkfield=1,
+        working_size=working_size,
+        max_workers=8,
+    )
+    basic.fit(imgs)
+    logger.info(f"BaSiC model fitted on {len(imgs)} images.")
+    
+    return basic
 
 
 def _basic_transform(
     image_paths: List[Path],
     model: BaSiC,
     target_dir: Optional[Path] = None,
-    timelapse: bool = False,
     logger: Optional[logging.Logger] = None,
 ) -> bool:
     if logger is None:
@@ -70,14 +65,13 @@ def _basic_transform(
     try:
         imgs = np.stack([imread(p) for p in image_paths])
         dtype_in = imgs.dtype
-        corrected = model.transform(imgs, timelapse=timelapse)
+        corrected = model.transform(imgs)
 
         # Clip to original bit depth
         if dtype_in == np.uint16:
             corrected = np.clip(corrected, 0, 65535)
         elif dtype_in == np.uint8:
             corrected = np.clip(corrected, 0, 255)
-
         corrected = corrected.astype(dtype_in)
 
         for src_path, corr_img in zip(image_paths, corrected):
@@ -136,8 +130,20 @@ def fit_basic_models(
             imwrite(basic_dir / f"model_{chan}_darkfield.tiff", model.darkfield.astype(np.float32), compression="zlib")
 
         # Test on 2 random images
-        test_paths = random.sample(paths, min(2, len(paths)))
-        corrected = model.transform(np.stack([imread(p) for p in test_paths]))
+        test_paths = random.sample(paths, min(3, len(paths)))
+        imgs = np.stack([imread(p) for p in test_paths])
+        corrected = model.transform(imgs)
+        
+        # Clip to original bit depth
+        dtype_in = imgs.dtype
+        if dtype_in == np.uint16:
+            # print(np.min(corrected), np.max(corrected))
+            corrected = np.clip(corrected, 0, 65535)
+            # print(np.min(corrected), np.max(corrected))
+        elif dtype_in == np.uint8:
+            corrected = np.clip(corrected, 0, 255)
+        corrected = corrected.astype(dtype_in)
+        
         for i, p in enumerate(test_paths):
             copy(p, basic_dir / p.name)
             imwrite(basic_dir / f"{p.stem}_corrected.tiff", corrected[i].astype(p.suffix == ".tiff" and np.uint16 or np.uint8), compression="zlib")
@@ -219,7 +225,7 @@ def main():
                             "  --dataset_kwargs '{\"cellprofiler_style\": True}'")
     args = parser.parse_args()
 
-    user_dataset_kwargs = _parse_dataset_kwargs(args.dataset_kwargs)
+    user_dataset_kwargs = parse_string_to_dict(args.dataset_kwargs)
     
     # ------------------------------------------------------------------- #
     # Setup

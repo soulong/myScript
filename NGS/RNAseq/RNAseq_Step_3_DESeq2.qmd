@@ -2,46 +2,39 @@
 title: "RNAseq Differential Gene Expression Analysis"
 author: "Hao He"
 date: "`r Sys.time()`"
-format: html
+editor_options:
+  chunk_output_type: console
 params:
-  save_Rdata: TRUE
-  species: "hs" # species: hs or mm
+   # project directory
+  root_dir: "D:\\20260211 RNA seq"
+  # hs or mm
+  species: "hs" 
+  # general setting
+  samplesheet: "samplesheet.csv" 
+  quantification_dir: "quantification"
+  counts_file_suffix: "_gene_expression.xlsx"
+  deseq2_dir: "deseq2"
   deg_padj: 0.01
   deg_fc: 1.5
   deg_threshold: 2 # tpm threshold at least in one group for plot heatmmap
-  counts_file_suffix: "_gene_expression.xlsx" # suffix of gene expression file
-  sample_info_file: "sample_info.xlsx" # sample info file located in root_dir
-  quantification_dir: "quantification" # directory of expression file
-  deseq2_dir: "deseq2" # output directory of DESeq2
-editor_options: 
-  chunk_output_type: console
 ---
 
 # Setup
 ```{r setup, include=FALSE, cache = FALSE}
 # options("repos" = c(CRAN = "http://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
 # options(BioC_mirror = "http://mirrors.tuna.tsinghua.edu.cn/bioconductor")
-f_path <- rstudioapi::getActiveDocumentContext()$path |> dirname()
-setwd(dirname(f_path))
-knitr::opts_knit$set(root.dir=dirname(f_path))
-knitr::opts_chunk$set(echo = TRUE, results = "hold", cache = TRUE)
+script_path <- rstudioapi::getActiveDocumentContext()$path |> dirname()
+source(file.path(script_path, "RNAseq_helper.R"))
 
-# load package
-invisible(sapply(
-  c("tidyverse","readxl","writexl","DESeq2","ashr","factoextra","corrplot",
-    "RColorBrewer","ggrepel","patchwork","lemon","cowplot","pheatmap"), 
-  function(x) library(x, character.only=T)))
-```
-
-```{r}
-# load help function
-source("scripts/RNAseq_helper.R")
+# knitr::opts_knit$set(root.dir=dirname(f_path))
+setwd(params$root_dir)
+knitr::opts_chunk$set(echo=TRUE, results="hold", cache=TRUE)
 
 species <- params$species
 deg_padj <- params$deg_padj
 deg_fc <- params$deg_fc
 deg_threshold <- params$deg_threshold
-sample_info_file <- params$sample_info_file
+samplesheet <- params$samplesheet
 counts_file_suffix <- params$counts_file_suffix
 deseq2_dir <- params$deseq2_dir
 quantification_dir <- params$quantification_dir
@@ -49,54 +42,48 @@ run_DEG_pattern <- params$run_DEG_pattern
 save_Rdata <- params$save_Rdata
 
 if(!dir.exists(deseq2_dir)) dir.create(deseq2_dir)
-```
 
+library(tidyverse)
+library(DESeq2)
+library(ashr)
+library(corrplot)
+library(pheatmap)
+library(factoextra)
+library(patchwork)
+library(rio)
+options(rio.import.class='tbl')
+```
 
 # Prepare colData
 ```{r}
-print(getwd())
-# read sample info
-sample <- sample_info_file %>% 
-  read_xlsx(sheet="sample", col_types="text")
+sample <- import(samplesheet)
+col_data <- sample[, 1:2] %>% column_to_rownames('sample') %>% print()
 
-# check sample info if project_id and sample_name were unique
-if(length(sample$project_id) != unique(length(sample$project_id))) {
-  stop("check samples file, `project_id` were not unique") } else {
-    if(length(sample$sample_name) != unique(length(sample$sample_name)))
-      stop("check samples file, `sample_name` were not unique") }
+# edit manually
+comparison <- list(c("3P51-3h", "DMSO"))
 
-# read contrast info
-contrast_info <- normalizePath(sample_info_file) %>% 
-  read_xlsx(sheet="contrast", range="A1:C100", col_types="text")
+if(!all(list_c(comparison) %in% sample$group)) 
+  stop('all comparison should be in group column!')
 
-# construct contrast
-contrast <- na.omit(contrast_info$contrast) %>% 
-  seq_along() %>% 
-  map(\(x) c(contrast_info$contrast[x], contrast_info$control[x]))
-
-# subset & filter sample info
-sample <- c("project_id", "sample_name", "include", "batch") %>% 
-  c(na.omit(contrast_info$comparison)) %>% 
-  sample[, .] %>% 
-  filter(include=="yes")
-
-# construct sample contrasts according to sample info colData
-sample$contrast <- na.omit(contrast_info$comparison) %>% 
-  sample[, .] %>% 
-  apply(1, paste, collapse=".") %>% 
-  factor(., levels=unique(.))
-
-# check if contrast has its relative items in sample_info$condition
-if(!all(as.factor(unlist(contrast)) %in% sample$contrast)) 
-  stop("not all 'contrast' vs 'control' were found in sample definition, please check it")
-
-# prepare colData
-col_data <- data.frame(batch = sample$batch, contrast = sample$contrast) %>% 
-  magrittr::set_rownames(sample$sample_name)
-
-# show sample info
-print(sample)
 ```
+
+
+```{r}
+f <- 'quantification/2026-02-12_gene_expression.xlsx'
+x <- import(f, which='counts')
+
+ran <- rnorm(nrow(x), 1, sd=0.1)
+ran[ran < 0.2] <- 0.2
+x$`3P51-3h-2` <- x$`3P51-3h-1` * ran
+
+ran <- rnorm(nrow(x), 1, sd=0.1)
+ran[ran < 0.2] <- 0.2
+x$`DMSO-2` <- x$`DMSO-1` * ran
+
+y <- import(f, which='tpm')
+export(list(tpm=y, counts=x), f)
+```
+
 
 # Prepare count matrix
 ```{r}
@@ -113,51 +100,40 @@ if(length(expr_file) == 0) {
       print(expr_file) } }
 
 # read counts
-counts <- expr_file %>% read_xlsx(sheet = "counts")
+print("read counts data")
+counts <- import(expr_file, which = "counts")
 # remove samples not include (include = no) and convert to matrix
-counts <- counts[, c("symbol", sample$sample_name)] %>% 
+counts <- counts[, c("symbol", sample$sample)] %>% 
   filter(!is.na(symbol)) %>%
   distinct(symbol, .keep_all = T) %>%
-  column_to_rownames("symbol")
+  column_to_rownames("symbol") %>% 
+  round()
 # filter low count genes within each group
-counts <- sample[, c("sample_name", "contrast")] %>% 
-  deframe %>% 
+counts <- sample[, 1:2] %>% deframe %>% 
   # mean > 10 counts at least one group
-  filter_df_by_group(counts, ., threshold = 10)
+  filter_df_by_group(counts, ., threshold = 5)
 
 # read TPM
-if("tpm" %in% excel_sheets(expr_file)) {
+if("tpm" %in% readxl::excel_sheets(expr_file)) {
   print("read TPM data")
-  tpm <- expr_file %>% read_xlsx(sheet = "tpm") %>% 
-    select(all_of(c("symbol", sample$sample_name))) %>% 
+  tpm <- import(expr_file, which = "tpm") %>% 
+    select(all_of(c("symbol", sample$sample))) %>% 
     filter(symbol %in% rownames(counts), !is.na(symbol)) %>% 
     distinct(symbol, .keep_all = T)
-  # mean > 5 tpm at least one group
+  # mean > xx tpm at least one group
   tpm_filter <- tpm %>% 
     filter_df_by_group(
-      deframe(sample[, c("sample_name", "contrast")]), 
-      threshold = deg_threshold) }
+      deframe(sample[, 1:2]), 
+      threshold = deg_threshold)
+  }
 ```
 
 # Cnnstruct DESeq2
 ```{r}
-# check if batch data included
-include_batch <- length(unique(col_data$batch)) > 1
+deseq_matrix <- DESeqDataSetFromMatrix(
+  counts, colData = col_data, design = ~ group)
 
-if(include_batch) {
-  deseq_matrix <- DESeqDataSetFromMatrix(
-    countData = counts, colData = col_data, 
-    design = ~ batch + contrast)
-} else {
-  deseq_matrix <- DESeqDataSetFromMatrix(
-    countData = counts, colData = col_data,
-    design = ~ contrast) }
-
-# pair-wise wald test
 deseq_wald <- DESeq(deseq_matrix)
-
-# dispersion estimation
-# plotDispEsts(deseq_wald)
 ```
 
 # Exploratory analysis
@@ -165,13 +141,6 @@ deseq_wald <- DESeq(deseq_matrix)
 # vst transformation
 vst <- vst(deseq_wald, blind = F)
 vst_mat <- assay(vst)
-
-# batch effect
-if(include_batch) {
-  print("perform batch correction")
-  vst_mat <- limma::removeBatchEffect(
-    vst_mat, vst$batch, 
-    design = model.matrix(~ vst$contrast)) }
 
 # top N variable genes heatmap
 N <- 2000
@@ -182,10 +151,10 @@ top_variable_genes <- rowVars(vst_mat) %>%
     col = colorRampPalette(c("#377eb8", "#f7f7f7", "#e41a1c"))(100),
     # col = colorRampPalette(c("#377eb8", "#f7f7f7", "#e41a1c"))(100)
     show_rownames = F, cluster_cols = F, cluster_rows = T,
-    annotation_col = col_data[, "contrast", drop = F], 
+    annotation_col = col_data[, "group", drop = F], 
     filename = str_glue("{deseq2_dir}/{Sys.Date()}_variable_genes_heatmap_top{N}.pdf"),
-    width = ceiling(nrow(col_data)/4), 
-    height = ceiling(nrow(col_data)/5),
+    width = ceiling(nrow(col_data)/1), 
+    height = ceiling(nrow(col_data)/1),
     main = str_glue("Heatmap of top {N} variable genes") )
 
 # sample to sample correlation
@@ -194,31 +163,15 @@ vst_mat %>%
   pheatmap::pheatmap(
     scale = "none", border_color = NA,
     cluster_cols = F, cluster_rows = F,
-    col = colorRampPalette(brewer.pal(9, "Blues"))(255),
-    annotation_col = col_data[, "contrast", drop = F], 
-    annotation_row = col_data[, "contrast", drop = F], 
+    col = colorRampPalette(RColorBrewer::brewer.pal(9, "Blues"))(255),
+    annotation_col = col_data[, "group", drop = F], 
+    annotation_row = col_data[, "group", drop = F], 
     filename = str_glue("{deseq2_dir}/{Sys.Date()}_sample_correlation.pdf"),
-    width = ceiling(nrow(col_data)/2), 
-    height = ceiling(nrow(col_data)/2) - 1.5,
+    width = ceiling(nrow(col_data)*2), 
+    height = ceiling(nrow(col_data)*2) - 1,
     main = str_glue("Sample distance using all expressed genes")
   )
 
-# # sample to sample correlation (use corrplot)
-# pdf(str_glue("{deseq2_dir}/{Sys.Date()}_sample_correlation2.pdf"),
-#     width = ceiling(ncol(vst_mat)/2), 
-#     height = ceiling(ncol(vst_mat)/2))
-# vst_mat %>% 
-#   cor(method = "pearson") %>% 
-#   corrplot.mixed(
-#     lower = "number", upper = "ellipse",
-#     order = "hclust",
-#     tl.cex = 0.4,
-#     number.cex = 0.6,
-#     number.digits = 3,
-#     lower.col=colorRampPalette(c("#386cb0","white","#d73027"))(200),
-#     upper.col=colorRampPalette(c("#386cb0","white","#d73027"))(200),
-#     tl.col="black")
-# while(dev.cur() != 1) dev.off()
 
 # PCA
 pca <- t(vst_mat) %>% prcomp(scale. = T)
@@ -234,7 +187,7 @@ p2 <- pca %>%
     geom = c("point", "text"), 
     repel = TRUE, labelsize = 2, 
     pointshape = 19, pointsize = 2, 
-    col.ind = sample$contrast,
+    col.ind = sample$group,
     # fill.ind = sample$contrasts,
     addEllipses = TRUE, ellipse.type = "confidence", ellipse.level = 0.95, 
     invisible = "quali", legend.title = "") +
@@ -244,62 +197,9 @@ p2 <- pca %>%
         legend.position = "top",
         legend.key.size = unit(0.01, 'snpc'),
         legend.text = element_text(size=4))
-ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_sample_pca.pdf"), 
-        p1 + p2 + plot_layout(widths = c(3, 2)), 
-        width=9, height=4)
-
-# # MDS using Euclidean Distance
-# mds <- t(vst_mat) %>%
-#   dist(method="euclidean") %>%
-#   as.matrix() %>%
-#   cmdscale() %>% 
-#   as.data.frame() %>% 
-#   magrittr::set_colnames(c("MDS1", "MDS2")) %>% 
-#   as_tibble(rownames="sample") %>% 
-#   left_join(as_tibble(col_data, rownames="sample"),
-#             by = join_by(sample))
-# 
-# # plot mds
-# p <- mds %>% 
-#   ggplot(aes(MDS1, MDS2, color=contrast)) +
-#   geom_point(size=2) +
-#   geom_mark_ellipse(expand = unit(0.1,"mm")) +
-#   # stat_ellipse(show.legend = F) +
-#   geom_text_repel(aes(label=sample), size=1) +
-#   theme_bw() +
-#   theme(legend.position = "top",
-#         panel.grid = element_blank(),
-#         legend.title = element_blank(),
-#         legend.text = element_text(size=4))
-# ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_sample_mds_euclidean.pdf"), 
-#         p, width=4, height=4)
-
-
-# MDS using Poisson Distance
-require("PoiClaClu")
-poisd <- t(vst_mat) %>% 
-  PoiClaClu::PoissonDistance() %>% 
-  .$dd %>% as.matrix() %>% 
-  magrittr::set_colnames(colnames(deseq_wald)) %>% 
-  magrittr::set_rownames(colnames(deseq_wald))
-mds <- poisd %>% cmdscale() %>% as.data.frame() %>% 
-  magrittr::set_colnames(c("MDS1", "MDS2")) %>% 
-  as_tibble(rownames="sample") %>% 
-  left_join(as_tibble(col_data, rownames="sample"), by=join_by(sample))
-# plot mds
-p <- mds %>% 
-  ggplot(aes(MDS1, MDS2, color=contrast)) +
-  geom_point(size=2) +
-  ggforce::geom_mark_ellipse(expand = unit(0.1,"mm"), show.legend = F) +
-  geom_text_repel(aes(label=sample), size=1.5, max.overlaps=20) +
-  theme_bw() +
-  theme(legend.position = "top",
-        panel.grid = element_blank(),
-        legend.key.size = unit(0.01, 'snpc'),
-        legend.title = element_blank(),
-        legend.text = element_text(size=4))
-ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_sample_mds_poisson.pdf"), 
-        p, width=4, height=4)
+ggsave(str_glue("{deseq2_dir}/{Sys.Date()}_sample_pca.pdf"), 
+       p1 + p2 + plot_layout(widths = c(3, 2)), 
+       width=9, height=4)
 ```
 
 # Save normalized data
@@ -309,27 +209,27 @@ expr_norm <- list(
   vst = vst_mat %>% as_tibble(rownames="symbol"),
   tpm = tpm )
 
-write_xlsx(expr_norm, str_glue(
+export(expr_norm, str_glue(
   "{quantification_dir}/{Sys.Date()}_norm_expression.xlsx"))
 ```
 
 # Get comparison result
 ```{r}
 # extract wald test result 
-if(length(contrast) > 0) {
+if(length(comparison) > 0) {
   deg_list <- list()
-  for (i in seq_along(contrast)) {
+  for (i in seq_along(comparison)) {
     cat(str_c(">>>>>>>> get wald test result on: ", 
-              contrast[[i]][1], "_vs_", contrast[[i]][2]))
+              comparison[[i]][1], "_vs_", comparison[[i]][2]))
     
     # get result
     deg_unshrink <- results(
       deseq_wald, 
-      contrast = c("contrast", contrast[[i]][1], contrast[[i]][2]) )
+      contrast = c("group", comparison[[i]][1], comparison[[i]][2]) )
     # shrink LFC
     deg_shrink <- lfcShrink(
       deseq_wald, 
-      contrast = c("contrast", contrast[[i]][1], contrast[[i]][2]), 
+      contrast = c("group", comparison[[i]][1], comparison[[i]][2]), 
       svalue = T, type = "ashr", quiet = T)
     summary(deg_shrink)
     # merge stats, p values with deg_shrink result
@@ -347,12 +247,12 @@ if(length(contrast) > 0) {
     
     # append to results list
     result <- list(result) %>% 
-      set_names(str_glue("{contrast[[i]][1]}_vs_{contrast[[i]][2]}"))
+      set_names(str_glue("{comparison[[i]][1]}_vs_{comparison[[i]][2]}"))
     deg_list <- append(deg_list, result)
   }
   
   # save deg result
-  write_xlsx(deg_list, str_glue("{deseq2_dir}/{Sys.Date()}_wald_result.xlsx"))
+  export(deg_list, str_glue("{deseq2_dir}/{Sys.Date()}_wald_result.xlsx"))
 }
 ```
 
@@ -362,12 +262,12 @@ deg_list %>%
   imap(\(x,y) plot_volcano(
     x, 
     fc_thred=deg_fc, padj_thred=deg_padj,
-    title=y, size=1, alpha=0.5,
+    title=y, size=1, alpha=0.7,
     xlim=c(-7.5, 7.5), ylim=c(0, 120)
   )) %>% 
   wrap_plots(nrow=1) %>% 
-  ggsave2(str_glue("{deseq2_dir}/{Sys.Date()}_wald_volcano.pdf"), ., 
-          width=ceiling(length(deg_list)*5), height=4, limitsize = F) 
+  ggsave(str_glue("{deseq2_dir}/{Sys.Date()}_wald_volcano.pdf"), ., 
+         width=ceiling(length(deg_list)*5), height=4, limitsize = F) 
 ```
 
 # DEG count
@@ -397,14 +297,14 @@ if(T) {
   print("use LRT result as DEGs")
   # LRT test
   deseq_lrt <- DESeqDataSetFromMatrix(
-    countData = counts, colData = col_data, design = ~ contrast) %>%
+    counts, colData = col_data, design = ~ group) %>%
     DESeq(test = 'LRT', reduced = ~ 1)
   # get LRT result
   lrt_result <- results(deseq_lrt) %>% 
     as_tibble(rownames='symbol')
   # save LRT
-  write_xlsx(lrt_result,
-             str_glue("{deseq2_dir}/{Sys.Date()}_lrt_result.xlsx"))
+  export(lrt_result,
+         str_glue("{deseq2_dir}/{Sys.Date()}_lrt_result.xlsx"))
   
   deg_uni <- lrt_result %>%
     filter(abs(log2FoldChange) > log2(deg_fc),
@@ -440,8 +340,7 @@ if(exists("tpm")) {
 # gene cluster annotation
 # anno_row <- pattern$df %>% 
 #   mutate(genes=NULL, cluster=str_glue("C{cluster}"))
-anno_col <- sample[, c("sample_name","contrast")] %>% 
-  column_to_rownames("sample_name")
+anno_col <- sample[, 1:2] %>% column_to_rownames("sample")
 
 # save deg heatmap
 p <- dat[[1]] %>% 
@@ -452,27 +351,16 @@ p <- dat[[1]] %>%
     annotation_col = anno_col, # annotation_row = anno_row, 
     show_rownames = F, show_colnames = T, angle_col = 45,
     filename = str_glue("{deseq2_dir}/{Sys.Date()}_deg_heatmap.pdf"),
-    width = ceiling((nrow(col_data)-1)/2), 
-    height = ceiling((nrow(col_data)-1)/2),
+    width = ceiling((nrow(col_data)-1)*2),
+    height = ceiling((nrow(col_data)-1)*2),
     main = str_glue("DEG heatmap (N={nrow(dat[[1]])})") )
 # save heatmap data
-p_data <- dat[[1]] %>% 
+dat[[1]] %>% 
   # .[p$tree_row$order, p$tree_col$order] %>% 
   .[p$tree_row$order, ] %>% 
   as_tibble(rownames="symbol") %>% 
-  list() %>% set_names(names(dat))
-write_xlsx(p_data, str_glue("{deseq2_dir}/{Sys.Date()}_deg_heatmap.xlsx"))
-```
-
-
-# Save image
-```{r}
-if(save_Rdata) {
-  save.image(str_glue("{deseq2_dir}/{Sys.Date()}_DESeq2.RData"))
-  }
-
-# load data
-# load(str_glue("{deseq2_dir}/2024-06-17_DESeq2.RData"))
+  list() %>% set_names(names(dat)) %>% 
+  export(str_glue("{deseq2_dir}/{Sys.Date()}_deg_heatmap.xlsx"))
 ```
 
 

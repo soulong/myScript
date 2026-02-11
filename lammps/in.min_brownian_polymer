@@ -1,0 +1,70 @@
+# ===============================
+# Minimal Brownian polymer (BD)
+# ===============================
+
+units           lj
+dimension       3
+boundary p p p
+atom_style      bond
+
+# -------------------------------
+# Simulation box
+# -------------------------------
+region          box block -30 30 -30 30 -30 30
+create_box 1 box bond/types 1 extra/bond/per/atom 2 extra/special/per/atom 6
+
+
+
+# -------------------------------
+# Molecule definition
+# -------------------------------
+molecule        poly polymer.mol
+
+
+# Place ONE polymer molecule
+create_atoms    0 random 1 12345 box mol poly 1
+
+
+# -------------------------------
+# Interactions
+# -------------------------------
+mass            1 1.0
+
+bond_style      harmonic
+bond_coeff      1 30.0 1.0
+
+pair_style      lj/cut 2.5
+pair_coeff      1 1 1.0 1.0 2.5
+
+special_bonds   lj 0.0 1.0 1.0
+
+# -------------------------------
+min_style cg
+minimize 1.0e-6 1.0e-8 1000 10000
+
+
+# Brownian / Langevin dynamics
+# -------------------------------
+velocity        all create 1.0 4928459 mom yes rot no
+
+fix 1 all langevin 1.0 1.0 10.0 12345
+fix             2 all nve
+
+timestep        0.001
+
+# -------------------------------
+# Output
+# -------------------------------
+thermo          100
+thermo_style    custom step temp etotal pe ke
+
+dump            1 all custom 200 traj.polymer.lammpstrj id type x y z
+
+# -------------------------------
+dump            1 all atom 100 traj.lammpstrj
+dump_modify     1 sort id
+
+
+# Run
+# -------------------------------
+run             10000

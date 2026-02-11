@@ -36,7 +36,7 @@ from skimage.transform import rescale
 from imageio.v3 import imread
 from tqdm import tqdm
 
-from image_helper import setup_logger, find_measurement_dirs, images_to_dataset, _parse_dataset_kwargs
+from image_helper import setup_logger, find_measurement_dirs, images_to_dataset, parse_string_to_dict
 
 # # will ignore all info
 # import os
@@ -284,7 +284,7 @@ def main() -> None:
                             "  --dataset_kwargs '{\"mask_suffix\": None, \"remove_na_row\": False}'\n"
                             "  --dataset_kwargs '{\"cellprofiler_style\": True}'")
     args = parser.parse_args()
-    user_dataset_kwargs = _parse_dataset_kwargs(args.dataset_kwargs)
+    user_dataset_kwargs = parse_string_to_dict(args.dataset_kwargs)
 
     # ------------------------------------------------------------------- #
     # Setup

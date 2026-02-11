@@ -109,7 +109,6 @@ class ChemicalLibraryAnalyzer:
         self.fps_array = np.zeros((len(self.df), n_bits), dtype=bool)
         for i, fp in enumerate(self.df['fp']):
             self.fps_array[i] = fp.ToList()
-    
     def select_diverse_representatives(
         self,
         num_reps: int = 300,
@@ -419,12 +418,13 @@ class HitVisualizer:
 if __name__ == "__main__":
 
     # Configuration
-    BASE_DIR = '/mnt/f/workspace/p53'
-    LIB_FILE = 'HTS-V5.0-370k.csv'
+    BASE_DIR = '/mnt/f/workspace/Project_p53'
+    LIB_FILE = 'ASMS_primary/HTS-V5.0-370k.csv'
     N_NEIGHBORS = 10
     MIN_DIST = 0.05
     tody = datetime.now().strftime("%Y-%m-%d")
-    PKL_NAME = f'{tody}_library_n{N_NEIGHBORS}_d{MIN_DIST}.pkl'
+    # PKL_NAME = f'{tody}_library_n{N_NEIGHBORS}_d{MIN_DIST}.pkl'
+    PKL_NAME = f'2026-01-10_library_n{N_NEIGHBORS}_d{MIN_DIST}.pkl'
 
     if not os.path.exists(BASE_DIR):
         print(f"Directory {BASE_DIR} not found. Check your paths.")
@@ -453,25 +453,28 @@ if __name__ == "__main__":
             viz.export_results(df_lib, output_file=f'{tody}_library.xlsx')
         
         # Case: Specific Hits
-        hits_file = 'WuXi Lin Gang Lab ASMS-P53-0109.csv'
-        if os.path.exists(hits_file) and (not os.path.exists(f'{tody}_hits_structure.pdf')):
-            df_hits = viz.add_hits(source=hits_file, id_col='Name', name='Batch_A')
-            viz.map_umap(df_hits, output_file=f'{tody}_hits_umap.pdf', point_size='mw')
-            viz.export_results(df_hits, f'{tody}_hits_result.xlsx')
-            viz.draw_hits(df_hits, max_hits=100, sort_by='Area', ascending=False, output_file=f'{tody}_hits_structure.pdf')
+        # hits_file = 'ASMS_primary/WuXi Lin Gang Lab ASMS-P53-0109_simple.csv'
+        # sort_by = 'Height'
+        hits_file = 'ASMS_confirm/WuXi Lin Gang Lab ASMS-P53-20260122_simple.csv'
+        sort_by = 'RBA'
+        if os.path.exists(hits_file) and (not os.path.exists(f'{tody}_hits_structure_{sort_by}.pdf')):
+            df_hits = viz.add_hits(source=hits_file, id_col='Name')
+            viz.map_umap(df_hits, output_file=f'{tody}_hits_umap_{sort_by}.pdf', point_size=sort_by)
+            viz.export_results(df_hits, f'{tody}_hits_result_{sort_by}.xlsx')
+            viz.draw_hits(df_hits, max_hits=300, sort_by='RBA', ascending=False, output_file=f'{tody}_hits_structure_{sort_by}.pdf')
 
-        # Case: Similarity Search
-        query_smiles = {'pc14586'="CNC(=O)C1=CC(=C(C=C1)NCC#CC2=CC3=C(C=CC=C3N2CC(F)(F)F)N[C@@H]4CCN(C[C@@H]4F)C)OC",
-                        'activator7'="CNC(=O)C1=CC(=C(C=C1)NCC#CC2=CC3=C(C=CC=C3N2CC(F)(F)F)N[C@@H]4CCN(C[C@@H]4F)C)OC",
-                        }
-        for k, v in query_smiles:
-            if not os.path.exists(f'{tody}_similar_structure_{k}.pdf'):
-                top_analogs = lib.search_similar(v, top_n=50)
-                top_analogs = top_analogs[['compound_id','tanimoto_similarity']]
-                df_search = viz.add_hits(source=top_analogs, id_col='compound_id', name='Analogs')
-                viz.map_umap(df_search, output_file=f'{tody}_similar_umap_{k}.pdf', point_size='tanimoto_similarity')
-                viz.export_results(df_search, f'{tody}_similar_result_{k}.xlsx')
-                viz.draw_hits(df_search, max_hits=50, sort_by='tanimoto_similarity', ascending=False, output_file=f'{tody}_similar_structure_{k}.pdf')
+        # # Case: Similarity Search
+        # query_smiles = {'pc14586'="CNC(=O)C1=CC(=C(C=C1)NCC#CC2=CC3=C(C=CC=C3N2CC(F)(F)F)N[C@@H]4CCN(C[C@@H]4F)C)OC",
+        #                 'activator7'="CNC(=O)C1=CC(=C(C=C1)NCC#CC2=CC3=C(C=CC=C3N2CC(F)(F)F)N[C@@H]4CCN(C[C@@H]4F)C)OC",
+        #                 }
+        # for k, v in query_smiles:
+        #     if not os.path.exists(f'{tody}_similar_structure_{k}.pdf'):
+        #         top_analogs = lib.search_similar(v, top_n=50)
+        #         top_analogs = top_analogs[['compound_id','tanimoto_similarity']]
+        #         df_search = viz.add_hits(source=top_analogs, id_col='compound_id', name='Analogs')
+        #         viz.map_umap(df_search, output_file=f'{tody}_similar_umap_{k}.pdf', point_size='tanimoto_similarity')
+        #         viz.export_results(df_search, f'{tody}_similar_result_{k}.xlsx')
+        #         viz.draw_hits(df_search, max_hits=50, sort_by='tanimoto_similarity', ascending=False, output_file=f'{tody}_similar_structure_{k}.pdf')
        
 
 
