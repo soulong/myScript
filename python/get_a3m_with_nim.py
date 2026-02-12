@@ -215,7 +215,7 @@ def process_msa_alignments(msa_response_dict, sequence, uniprot_id, output_dir, 
 
 if __name__ == 'main':
 
-    API_KEY = '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'
+    API_KEY = 'xxxxxxxxxxxxxxxxx'
     MSA_DATABASES = ['Uniref30_2302', 'colabfold_envdb_202108', 'PDB70_220313']
 
     output_dir = "./"
