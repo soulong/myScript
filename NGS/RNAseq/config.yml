@@ -2,7 +2,7 @@
 
 # ============================= Basic Settings =============================
 # root directory of project
-root_dir: "/mnt/d/20260211 RNA seq"
+root_dir: "/mnt/d/20260211_RNA_seq"
 
 # Directory containing raw FASTQ files
 fastq_dir: 01.RawData
@@ -26,12 +26,12 @@ skip_preprocess: false
 
 # Run STAR alignment (generates BAM files)
 # Set to true if you need BAM files for visualization or other downstream analysis
-run_star: false
+run_star: true
 
 # Run featureCounts for gene-level quantification
 # Requires run_star: true
 # Note: Salmon already provides transcript/gene counts, featureCounts is optional
-run_featurecounts: false
+run_featurecounts: true
 
 # ============================= Library Settings =============================
 
