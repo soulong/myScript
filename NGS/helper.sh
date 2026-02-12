@@ -479,7 +479,7 @@ setup_genome() {
         hs)
             INDEX_DIR="$index_rootdir/hs/v49"
             FASTA="${INDEX_DIR}/GRCh38.primary_assembly.genome.fa.gz"
-            GTF="${INDEX_DIR}/gencode.v49.annotation.gtf.gz"
+            GTF="${INDEX_DIR}/gencode.v49.basic.annotation.gtf.gz"
             CHROM_SIZES="${FASTA}.fai"
             GSIZE=2913022398
             ;;

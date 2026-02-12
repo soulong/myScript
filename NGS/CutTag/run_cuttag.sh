@@ -585,7 +585,7 @@ main() {
     FASTP_DIR="$OUTDIR/02_fastp"
     ALIGN_DIR="$OUTDIR/03_bam"
     PEAK_DIR="$OUTDIR/04_peaks"
-    MULTIQC_DIR="$OUTDIR/05_multiqc"
+    MULTIQC_DIR="$OUTDIR/multiqc"
 
     # Create directories
     create_dirs "$OUTDIR"

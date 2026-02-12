@@ -6,7 +6,7 @@ editor_options:
   chunk_output_type: console
 params:
   # project directory
-  root_dir: "D:\\20260211 RNA seq"
+  root_dir: "D:\\20260211_RNA_seq"
   # hs or mm
   species: "hs" 
   # general setting

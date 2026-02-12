@@ -2,7 +2,7 @@
 
 # ============================= Basic Settings =============================
 # root directory of project
-root_dir: "/mnt/d/20260211_CutTag"
+root_dir: "."
 
 # Directory containing raw FASTQ files
 fastq_dir: 01.RawData
@@ -43,7 +43,7 @@ macs_parameter: --nomodel --shift -100 --extsize 200 -q 0.05
 # ============================= Index Paths =============================
 # Root directory containing genome indices
 # Modify this to match your system's index location
-# check helper.sh for more details
+# check helper.sh setup_genome for details
 index_rootdir: /mnt/d/index
 
 # Expected directory structure under index_rootdir:

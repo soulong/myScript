@@ -2,7 +2,7 @@
 
 # ============================= Basic Settings =============================
 # root directory of project
-root_dir: "/mnt/d/20260211_RNA_seq"
+root_dir: "."
 
 # Directory containing raw FASTQ files
 fastq_dir: 01.RawData
@@ -45,6 +45,7 @@ library_type: IU
 
 # Root directory containing genome indices
 # Modify this to match your system's index location
+# check helper.sh setup_genome for details
 index_rootdir: /mnt/d/index
 
 # Expected directory structure under index_rootdir:
@@ -52,12 +53,12 @@ index_rootdir: /mnt/d/index
 #   ├── hs/                          # Human
 #   │   ├── salmon/                  # Salmon index
 #   │   ├── star/                    # STAR index
-#   │   └── gencode.v49.annotation.gtf
+#   │   └── gencode.v49.basic.annotation.gtf.gz
 #   ├── mm/                          # Mouse
 #   │   ├── salmon/
 #   │   ├── star/
-#   │   └── gencode.vM38.annotation.gtf
+#   │   └── gencode.vM38.annotation.gtf.gz
 #   └── hs/chm13/                    # Human T2T-CHM13
 #       ├── salmon/
 #       ├── star/
-#       └── chm13v2.0.gtf
+#       └── chm13v2.0.gtf.gz

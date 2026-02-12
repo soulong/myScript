@@ -213,8 +213,8 @@ main() {
     FASTP_DIR="$OUTDIR/02_fastp"
     SALMON_DIR="$OUTDIR/03_salmon"
     STAR_DIR="$OUTDIR/04_bam"
-    COUNTS_DIR="$OUTDIR/05_counts"
-    MULTIQC_DIR="$OUTDIR/06_multiqc"
+    COUNTS_DIR="$OUTDIR/05_featurecounts"
+    MULTIQC_DIR="$OUTDIR/multiqc"
 
     # Create directories
     create_dirs "$OUTDIR"

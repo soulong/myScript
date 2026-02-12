@@ -6,7 +6,7 @@ editor_options:
   chunk_output_type: console
 params:
   # project directory
-  root_dir: "D:\\20260211 RNA seq"
+  root_dir: "D:\\20260211_RNA_seq"
   # hs or mm
   species: "hs" 
   # general setting
@@ -14,7 +14,7 @@ params:
   quantification_dir: "quantification"
   salmon_dir: "result\\03_salmon"
   bam_dir: "result\\04_bam"
-  bam_count_dir: "result\\05_counts"
+  bam_count_dir: "result\\05_featurecounts"
   hs_gtf_file: "D:\\index\\hs\\v49\\gencode.v49.basic.annotation.gtf.gz"
   mm_gtf_file: "D:\\index\\hs\\vM38\\gencode.vM38.basic.annotation.gtf.gz"
 ---
@@ -188,77 +188,48 @@ if(exists("tx_salmon_transcript")) {
 
 
 
-## Gene quantification from BAM (Optional)
+## BAM quantification
 ```{r gene_quantification_from_bam}
-if(params$bam_count_dir) {
+if(file.exists(params$bam_count_dir)) {
   if(!(list.files(params$quantification_dir) %>%
        str_detect("_gene_expression_bam.xlsx") %>% 
        any())) {
     
     cat("\n------------------\n")
     cat("\nfeaturcounts gene annoation\n")
-    gene_count_featurecounts <- suppressMessages(
-      read_table2(paste0(params$quantification_dir, "/gene_featurecounts.txt"), comment="#")) %>%
-      dplyr::select(-Chr, -Start, -End, -Strand)
-    
-    # simplify colnames
-    colnames(gene_count_featurecounts)[-1:-2] <-
-      map_chr(colnames(gene_count_featurecounts)[-1:-2], 
-              ~ str_split(.x, "/", simplify=TRUE)[2])
-    
-    # simplify rownames
-    gene_count_featurecounts$Geneid <- 
-      map_chr(gene_count_featurecounts$Geneid, 
-              ~ str_split(.x, "[.]", simplify=TRUE)[1])
-    
-    # check columns identity
-    if(!setequal(colnames(gene_count_featurecounts)[-1:-2], sample$project_id))
-      stop("project_id in sample_info are not identical with featurecounts output\n")
-    
-    # rename columns project_id with samples
-    name_index <- match(colnames(gene_count_featurecounts)[-1:-2],
-                        sample$project_id)
-    colnames(gene_count_featurecounts)[-1:-2] <- 
-      sample$sample_name[name_index]
+    gene_count_featurecounts <- import(paste0(
+      params$bam_count_dir, "/gene_counts.txt")) %>%
+      dplyr::select(!(Chr:Strand)) %>% 
+      # simplify colnames
+      rename_with(\(x) basename(x) %>% str_replace('(.bam)',''), !c(1:2)) %>% 
+      #re-order cols
+      select(ensembl_id=Geneid, Length, all_of(sample$sample)) %>% 
+      # simplify rownames
+      mutate(ensembl_id=str_replace_all(ensembl_id, '\\.\\d?', ''))
     
     # annotation
-    gene_count_featurecounts_anno <- 
-      dplyr::select(gene_count_featurecounts, -Length) %>%
-      right_join(gene_annotation, ., by=join_by(ensembl_id=Geneid)) %>%
+    gene_count_featurecounts_anno <- gene_count_featurecounts %>% 
+      dplyr::select(!Length) %>%
+      right_join(gene_annotation, ., by=join_by(ensembl_id)) %>%
       mutate(across(where(is.numeric), ~ round(.x, 0)))
-    
-    # reorder column order in sample_info order
-    column_index_counts <- match(sample$sample_name,
-                                 colnames(gene_count_featurecounts_anno))
-    gene_count_featurecounts_anno <- 
-      gene_count_featurecounts_anno[, c(1:3, column_index_counts)]
     
     # calculate TPM values
     tpm <- function(counts, lengths) {
       rate <- counts / lengths
       rate / sum(rate) * 1e6 }
     
-    gene_tpm_featurecounts_anno <- 
-      gene_count_featurecounts %>%
-      pivot_longer(3:ncol(.), names_to="sample", values_to="counts") %>%
-      group_by(sample) %>%
-      mutate(tpm=tpm(counts, Length), counts=NULL, Length=NULL) %>%
+    gene_tpm_featurecounts_anno <- gene_count_featurecounts %>%
+      pivot_longer(3:last_col(), names_to="sample", values_to="counts") %>%
+      mutate(tpm=tpm(counts, Length), counts=NULL, Length=NULL, .by=sample) %>%
       pivot_wider(names_from="sample", values_from="tpm") %>%
       # annotation
-      right_join(gene_annotation, ., by=join_by(ensembl_id=Geneid)) %>%
+      right_join(gene_annotation, ., by=join_by(ensembl_id)) %>%
       mutate(across(where(is.numeric), ~ round(.x, 2)))
     
-    # reorder columns
-    column_index_tpm <- match(sample$sample_name,
-                              colnames(gene_tpm_featurecounts_anno))
-    gene_tpm_featurecounts_anno <- 
-      gene_tpm_featurecounts_anno[, c(1:3, column_index_tpm)]
-    
     # save file
-    write_xlsx(
-      list(tpm=gene_tpm_featurecounts_anno, 
-           counts=gene_count_featurecounts_anno),
-      path=file.path(params$quantification_dir,
+    list(tpm=gene_tpm_featurecounts_anno, 
+           counts=gene_count_featurecounts_anno) %>% 
+      export(file.path(params$quantification_dir,
                        str_c(Sys.Date(),"_gene_expression_bam.xlsx")))
     
     cat("------------------\n")
