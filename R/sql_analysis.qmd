@@ -1,0 +1,443 @@
+---
+title: "cellprofiler analysis"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+#---------------------------------
+# prepare data
+
+```{r}
+rstudioapi::getActiveDocumentContext()$path |>
+  dirname() |>
+  setwd()
+# setwd("/media/hao/Data/2024-05-01_RTKs_active_mutations")
+
+# options("repos" = c(CRAN="https://mirrors.ustc.edu.cn/CRAN/")) 
+# options(BioC_mirror="https://mirrors.ustc.edu.cn/bioc/")
+options("repos" = c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+options(BioC_mirror="https://mirrors.westlake.edu.cn/bioconductor")
+
+# load packages
+library(tidyverse)
+library(rio)
+library(patchwork)
+library(RSQLite)
+
+# load helper function
+c("read_plate_info.R", 
+  "ggplot_helper.R",
+  "fit_ic50.R") %>% 
+  file.path(paste0(Sys.getenv('USERPROFILE'),
+                   "/GitHub/myScript/R"), .) %>%
+  walk(source)
+```
+
+## read sqlite db
+```{r}
+transform_well_style <- function(wells) {
+  sub("^([A-Za-z]+)0+", "\\1", wells)
+}
+
+read_sqlite <- function(f, skip_tables=c('metadata')) {
+  print(paste0('read table: ', f))
+  
+  conn <- DBI::dbConnect(RSQLite::SQLite(), dbname=f)
+  tables <- DBI::dbListTables(conn) %>% 
+    setdiff(skip_tables) %>% 
+    set_names(., nm=.)
+  
+  res <- tryCatch(
+    map(tables, 
+        \(x) tbl(conn, x) %>% collect() %>% 
+          janitor::remove_constant(quiet=F)
+    ),
+    error = function(e) print(e),
+    finally = DBI::dbDisconnect(conn)
+  )
+  
+  return(res)
+}
+
+result_db_files <- list.files(
+  '.', pattern='result.db', recursive=T, full.names=T) %>% 
+  print()
+
+# read the database into list
+raw_list <- map(result_db_files, read_sqlite)
+
+# merge all same table into one list item
+raw <- names(raw_list[[1]]) %>% 
+  set_names(names(raw_list[[1]])) %>% 
+  map(\(x) map(raw_list, \(y) y[[x]]) %>% list_rbind() )
+
+# print(raw)
+```
+
+## set channel name
+```{r}
+if(F) {
+  # manually define channel names
+  channel_names <- c("BFP"="ch1", "GFP"="ch2", "IFP"="ch3")
+  
+  for(idx in seq_along(channel_names)) {
+    for(table in names(raw)) {
+      # rename each table
+      print(paste0('rename channel: ', table, 
+                   'with: ', channel_names[idx]))
+      raw[[table]] <- raw[[table]] %>% 
+        rename_with(\(x) str_replace(
+          x, channel_names[idx], names(channel_names)[idx]))
+    }
+  }
+}
+```
+
+## merge plate info
+```{r}
+plate_info_files <- list.files(
+  ".", "plate_info.xlsx", recursive=T, full.names=T) %>% 
+  print()
+
+if(length(plate_info_files) > 0) {
+  plate_info <- plate_info_files %>%
+    map(read_plate_info) %>%
+    list_rbind() %>% 
+    # rename(Metadata_vector=value) %>% 
+    # separate_wider_delim(value, delim=regex("[+ ]"),
+    #                      names=c("Metadata_vector", "Metadata_type", "Metadata_adaptor"),
+    #                      too_few="align_start",
+    #                      cols_remove=T) %>%
+    # mutate(Metadata_vector=factor(Metadata_vector, c("Gal4DBD","APP","NOTCH1"))) %>%
+    # mutate(Metadata_conc=as.numeric(Metadata_conc))
+    print()
+}
+
+# merge with plate_info
+if(exists("plate_info")) {
+  for(table in names(raw)) {
+    print(paste0('merge plate_info: ', table))
+    raw[[table]] <- raw[[table]] %>% 
+      right_join(plate_info, .) %>% 
+      {if('directory' %in% colnames(.)) {
+        relocate(., contains('directory'), .before=1) %>% 
+          mutate(directory=str_replace_all(directory, '__.*', ''))
+      } else . }
+  }
+}
+```
+
+
+## !! modify object
+```{r}
+image <- raw$image %>% 
+  dplyr::select(!starts_with('shape_')) %>% 
+  glimpse()
+
+count(raw$cell, is_boundary)
+glimpse(raw$cell)
+
+cell <- raw$cell %>% 
+  left_join(raw$cell2) %>% 
+  filter(is_boundary < 1) %>% 
+  dplyr::select(!is_boundary) %>% 
+  mutate(intensity_mean_GFP2IFP=intensity_mean_BFP/
+           intensity_mean_IFP) %>% 
+  glimpse()
+
+# count(cell, well)
+
+if(F) {
+  cell$shape_eccentricity %>% quantile(c(0.01,0.05,0.1,0.5,0.9,0.95,0.99))
+  cell$shape_diameter %>% quantile(c(0.01,0.05,0.1,0.5,0.9,0.95,0.99))
+  cell$intensity_mean_BFP %>% quantile(c(0.01,0.05,0.1,0.5,0.9,0.95,0.99))
+  ggplot(cell, aes(intensity_mean_GFP)) +
+    geom_histogram(binwidth=20) +
+    facet_wrap(vars(vector, cmpd), axes="all") +
+    coord_cartesian(xlim=c(20, 3000)) +
+    # coord_cartesian(xlim=c(1e3, 2e6)) +
+    # scale_x_log10() +
+    my_theme(0)
+}
+
+```
+
+
+## summarize to field
+```{r}
+measure_pattern <- "shape|intensity|granularity|glcm|radial"
+
+meta_colnames <- colnames(cell) %>% 
+  str_subset(measure_pattern, negate=T) %>% 
+  setdiff(c("object_id", "is_boundary")) %>% 
+  print()
+
+# meta_colnames_no_field <- meta_colnames %>% 
+#   setdiff(c("field")) %>% 
+#   print()
+
+# summarize per field
+cell_field <- cell %>% 
+  reframe(across(matches(measure_pattern), 
+                 \(x) mean(x, trim=0, na.rm=T)),
+          .by=any_of(c(meta_colnames))) %>% 
+  print()
+
+image_field <- image %>% 
+  reframe(across(matches(measure_pattern), 
+                 \(x) mean(x, trim=0, na.rm=T)),
+          .by=any_of(c(meta_colnames))) %>% 
+  print()
+```
+
+
+## save data
+```{r}
+list(
+  image=image, cell=cell,
+  image_field=image_field,cell_field=cell_field
+) %>% 
+  export(str_glue("{Sys.Date()}_data.xlsx"))
+```
+
+
+
+
+
+# ---------------------------------
+# plot data
+
+## bar plot
+```{r}
+plot_obj <- "cell_field"
+
+pdata <- get(plot_obj) %>% 
+  {if("well" %in% colnames(.)) {
+    mutate(., well=factor(
+      well, str_sort(unique(well), numeric=T))) %>% 
+      mutate(row=str_extract(well, "(\\w)\\d+", group=1),
+             col=str_extract(well, "\\w(\\d+)", group=1) %>% 
+               {factor(., unique(sort(as.numeric(.))))}, 
+             .before=1)
+  } else .} %>% 
+  # mutate(group=str_c(conc, group, sep="_")) %>%
+  mutate(conc=factor(
+    conc, c("5uM","20uM"))) %>%
+  # filter(!is.na(Metadata_vector)) %>%
+  glimpse()
+
+plot_items <- colnames(get(plot_obj)) %>% 
+  str_subset(paste0(meta_colnames, collapse="|"), negate=T) %>% 
+  str_subset("object_id|is_boundary", negate=T) %>% 
+  str_subset("statistic$", negate=T) %>% 
+  str_subset("pvalue$", negate=T) %>% 
+  # str_subset("Granularity_[5-9]_", negate=T) %>% 
+  str_subset("Spot", negate=T) %>%
+  unique() %>% 
+  print()
+# plot_items <-c("shape_eccentricity", "intensity_mean_GFP")
+
+# bar
+plot_list <- plot_items %>% 
+  map(\(x) pdata %>% 
+        # filter(between(Intensity_MeanIntensity_GFP, 200, 2000)) %>% 
+        ggplot(aes(cmpd, !!as.name(x), fill=conc)) +
+        # stat_summary(geom="errorbar", fun.data=mean_sdl,
+        #              fun.args=list(mult=1), # check Hmisc::smean.sdl
+        #              width=0.4, color="grey20", # "#4575b4"
+        #              position=position_dodge(0.75)) +
+        stat_summary(geom="errorbar", fun.data=mean_se,
+                     width=0.4, color="grey20",
+                     position=position_dodge(0.75)) + 
+        stat_summary(geom="bar", fun=mean, 
+                     width=0.7, #fill="#4575b4",
+                     position=position_dodge(0.75)) + 
+        facet_wrap(vars(vector), nrow=1,
+                   scales="free_y", axes="all") +
+        # facet_grid(rows=vars(Metadata_batch),
+        #            cols=vars(Metadata_conc),
+        #            scales="free_x", axes="all") +
+        # ggpubr::stat_compare_means(
+        #   aes(group=Metadata_temp, label=after_stat(p.format)),
+        #   method="wilcox.test", size=1) +
+        labs(x="") +
+        # theme_bw()
+        # guides(fill="none") +
+        # scale_fill_hue(direction=-1) +
+        # scale_x_continuous(limits=c(1, 60000), 
+        #                    transform=scales::log2_trans()) +
+        # coord_cartesian(ylim=c(0, NA)) +
+        # labs(x="DNA usage (ng)") +
+        my_theme(angle=45)# + theme(legend.position="none")
+      )# %>% align_patches()
+pdf(str_glue("{Sys.Date()}_{plot_obj}_bar.pdf"), width=24, height=2)
+for(i in plot_list) print(i)
+while(dev.cur() != 1) dev.off()
+
+```
+
+
+
+#---------------------------------
+# statistics analysis
+## setting
+```{r}
+statistics_obj <- "cell"
+# statistics_obj <- "cell_filter_field"
+
+# normalized by group
+statistics_grouping_vars <- c("Metadata_prefix") 
+
+get_foldchange <- T # if calculate fold change to ctrl
+log_trans <- F # if fc log2 transform
+get_pvalue <- T # if calculate p-value
+pvalue_items <- c("Intensity_MeanIntensity_ErkKTRActivity") # column names from statistics_obj
+
+use_median <- T # if TRUE, ctrl_value will be set as median per group
+ctrl_colname <- "Metadata_well" # uid for analysis
+ctrl_value <- "0" # datatype must be same with column type, omit if use_median == T
+ctrl_value <- ifelse(isTRUE(use_median), "median", ctrl_value)
+```
+
+## foldchange
+```{r}
+if(get_foldchange) {
+  print(str_glue("use [{statistics_obj}] to calculate foldchange"))
+  assign(
+    str_glue("{statistics_obj}_stat"), 
+    calculate_foldchange(
+      get(statistics_obj), 
+      ctrl_colname=ctrl_colname, ctrl_value=ctrl_value,
+      grouping_vars=statistics_grouping_vars, use_median=use_median,
+      log_trans=log_trans, mean_trim=0.05, const=0)
+  )} else rm(list=str_subset(ls(), str_glue("^{statistics_obj}.*_stat$")))
+```
+
+## pvalue
+```{r}
+if(get_pvalue) {
+  print(str_glue("use [{statistics_obj}] to calculate pvalue"))
+  assign(
+    str_glue("{statistics_obj}_pval"), 
+    calculate_pvalue(
+      get(statistics_obj), 
+      ctrl_colname=ctrl_colname, ctrl_value=ctrl_value,
+      grouping_vars=statistics_grouping_vars, 
+      pvalue_items=pvalue_items, use_median=use_median) )
+  # merge pval with fc
+  assign(
+    str_glue("{statistics_obj}_stat"),
+    left_join(get(str_glue("{statistics_obj}_stat")),
+              get(str_glue("{statistics_obj}_pval"))) )
+} else rm(list=str_subset(ls(), str_glue("^{statistics_obj}.*_pval$")))
+
+# glimpse(get(str_glue("{statistics_obj}_stat")))
+```
+
+
+
+
+
+
+
+
+
+# --------------------------------------------------
+# dose response
+
+## fit setting
+```{r}
+# fitting_source: cell, cell_stat, cell_field, cell_field_stat
+# glimpse(summary_per_field_normCtrl)
+fitting_obj <- "cell_norm"
+fitting_X <- "Metadata_conc"
+fitting_Y <- "Granularity_2_GFP"
+fitting_groupby <- c("Metadata_prefix","Metadata_cmpd")
+# fitting_groupby <- NULL
+```
+
+## fit curve
+```{r}
+fitted <- get(fitting_obj) %>% 
+  # filter(Metadata_cmpd=="Sema") %>% 
+  fit_dose_response(
+    fitting_X, fitting_Y, fitting_groupby, n_worker=1
+    # # parameters from dr4pl::dr4pl()
+    # trend = "decreasing",
+    # method.init = "Mead",
+    # method.robust = "Huber",
+    # lowerl = c(theta_4 = 0)
+    )
+# prepare data to plot
+# remove not converged group
+fitted_prepared <- plot_dose_response_dataPrepare(
+  fitted, group=fitting_groupby)
+```
+
+## plot fitted result
+```{r}
+conc_series <- unique(pull(unnest(fitted_prepared, data), dose))
+log_trans_sigma <- conc_series %>% setdiff(0) %>% min() %>% 
+  magrittr::divide_by(10)
+axis_breaks <- conc_series %>% setdiff(0) %>% range() %>% 
+  log10() %>% round() %>% {seq(.[1], .[2], by=1)} %>% {10^(.)}
+if(0 %in% conc_series) axis_breaks <- c(0, axis_breaks)
+
+p <-  ggplot() +
+  stat_summary(aes(dose, response),
+               geom="pointrange", 
+               color="#4575b4", size=0.2,
+               fun=mean, 
+               fun.min = function(x) mean(x) - se(x), 
+               fun.max = function(x) mean(x) + se(x),
+               data=unnest(fitted_prepared, data)) +
+  geom_line(aes(x,y), color="#4575b4",
+            data=unnest(fitted_prepared, pred)) + 
+  geom_text(aes(x, y, label=label), 
+    size=2, nudge_x=1, nudge_y=-0.25,
+    data=unnest(fitted_prepared, pred) %>% 
+      arrange(x, y) %>% 
+      slice_head(n=1, by=any_of(fitting_groupby)) %>% 
+      mutate(label=str_c("IC50: ", format_num_auto(IC50_Estimate),"\n",
+                         "Upper: ", format_num_auto(as.numeric(Upper_Estimate)*100),"\n",
+                         "Lower: ", format_num_auto(as.numeric(Lower_Estimate)*100)))) +
+  facet_wrap(vars(Metadata_prefix),
+             scales="fixed", axes="all") +
+  # facet_grid(rows=vars(Metadata_prefix),
+  #            cols=vars(Metadata_vector),
+  #            scales="fixed", axes="all") +
+  labs(x="Dose (uM)", y=fitting_Y, caption="mean_se") +
+  scale_x_continuous(
+    transform=scales::pseudo_log_trans(sigma=log_trans_sigma, base=10),
+    breaks=axis_breaks,
+    # labels=scales::label_number(drop0trailing=T),
+    expand=expansion(mult=c(0.05, 0.1)),
+    labels=function(lab) {
+      do.call(expression, lapply(paste(lab), function(x) bquote(.(x))))
+      } ) +
+  # coord_cartesian(ylim=c(0, NA)) +
+  my_theme(angle=45)
+# p
+ggsave(str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.pdf"),
+        p, width=12, height=3, limitsize=F)
+```
+
+## save fitted data
+```{r}
+fitted_save_data <- fitted %>% 
+  unnest(coef) %>%
+  # add more IC values
+  mutate(ICs=map(
+    model, 
+    \(x) dr4pl::IC(x, inhib.percent=c(10, 50, 90)) %>% 
+      enframe() %>% 
+      pivot_wider() )) %>% 
+  unnest(ICs) %>% 
+  select(!c(data, model, pred))
+
+writexl::write_xlsx(
+  list(fitted=fitted_save_data), 
+  str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.xlsx"))
+```
+
