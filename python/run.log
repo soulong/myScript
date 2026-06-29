@@ -1,0 +1,19 @@
+2026-04-08 15:22:10 -- ======================================================================
+2026-04-08 15:22:10 -- DNA Barcode Generator v3
+2026-04-08 15:22:10 -- ======================================================================
+2026-04-08 15:22:10 -- Parameters:
+2026-04-08 15:22:10 --   Length: 12
+2026-04-08 15:22:10 --   Distance: 4
+2026-04-08 15:22:10 --   GC range: 35% - 65%
+2026-04-08 15:22:10 --   Max homopolymer: 3
+2026-04-08 15:22:10 --   Target count: 10,000
+2026-04-08 15:22:10 --   Exclude pattern: ATG|TAA|TGA|TAG
+2026-04-08 15:22:10 -- ======================================================================
+2026-04-08 15:22:10 -- Using strategy for length 12: {'generation': 'sampling', 'selection': 'greedy_khash', 'use_khash': True, 'batch_size': 50000}
+2026-04-08 15:22:10 -- === SAMPLING MODE ===
+2026-04-08 15:22:10 -- Sampling 50,000 sequences (length=12, GC=0.35-0.65, hp<3)...
+2026-04-08 15:22:11 --   Progress: 24,631/50,000 found (0.2% of max attempts)
+2026-04-08 15:22:12 -- Sampling complete: 50,000 sequences from 202,671 attempts
+2026-04-08 15:22:12 --   Internal filtering: 50,000 candidates -> max 5,000
+2026-04-08 15:25:32 --   Greedy filter progress: 20.0% - selected 1,744/50,000
+2026-04-08 15:29:25 --   Greedy filter progress: 40.0% - selected 2,136/50,000
