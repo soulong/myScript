@@ -12,12 +12,11 @@ editor_options:
 rstudioapi::getActiveDocumentContext()$path |>
   dirname() |>
   setwd()
-# setwd("/media/hao/Data/2024-05-01_RTKs_active_mutations")
 
 # options("repos" = c(CRAN="https://mirrors.ustc.edu.cn/CRAN/")) 
 # options(BioC_mirror="https://mirrors.ustc.edu.cn/bioc/")
 options("repos" = c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
-options(BioC_mirror="https://mirrors.westlake.edu.cn/bioconductor")
+options(BioC_mirror="https://mirrors.tuna.tsinghua.edu.cn/bioconductor")
 
 # load packages
 library(tidyverse)
@@ -28,10 +27,12 @@ library(RColorBrewer)
 
 # load helper function
 c("helper.R", 
-  "fit_ic50.R") %>% 
-  file.path(paste0(Sys.getenv('USERPROFILE'),
-                   "/GitHub/myScript/R"), .) %>%
+  "fit_ic50.R",
+  "ggplot_helper.R") %>% 
+  file.path("F:\\GitHub\\myScript\\R", .) %>%
   walk(source)
+
+setwd("F:\\workspace\\artes")
 ```
 
 ## read sqlite db
@@ -147,6 +148,10 @@ if('cell' %in% names(raw)) {
     # dplyr::select(!is_boundary) %>% 
     # mutate(intensity_mean_GFP2IFP=intensity_mean_BFP/
     #          intensity_mean_IFP) %>%
+    separate_wider_regex(directory, c("2026-", date=".*", "_P._", cell=".*"), 
+                         too_few = "align_start", cols_remove=F) %>% 
+    filter(!is.na(density)) %>% 
+    mutate(cell=factor(cell, c("H1299","TPC1","FPC133"))) %>% 
     glimpse()
   
   # count(cell, well)
@@ -187,6 +192,8 @@ cell_field <- cell %>%
                  \(x) mean(x, trim=0, na.rm=T)),
           cell_count=n(),
           .by=any_of(c(meta_colnames))) %>% 
+  select(!starts_with("intensity_")) %>% 
+  mutate(cell_area=round(shape_area * cell_count)) %>% 
   glimpse()
 
 image_field <- image %>% 
@@ -213,7 +220,7 @@ list(
 # ---------------------------------
 # plot data
 
-## bar plot
+## pdata
 ```{r}
 plot_obj <- "cell_field"
 
@@ -227,10 +234,12 @@ pdata <- get(plot_obj) %>%
              .before=1)
   } else .} %>% 
   mutate(conc=round(as.numeric(conc), 4)) %>%
-  mutate(conc=factor(conc, sort(unique(conc)))) %>%
+  # mutate(conc=factor(conc, sort(unique(conc)))) %>%
   # filter(!is.na(Metadata_vector)) %>%
   glimpse()
-# pdata$conc
+
+# set x conc range
+xrng <- range(pdata$conc[pdata$conc > 0], na.rm=T) %>% print()
 
 plot_items <- colnames(get(plot_obj)) %>% 
   str_subset(paste0(meta_colnames, collapse="|"), negate=T) %>% 
@@ -242,9 +251,18 @@ plot_items <- colnames(get(plot_obj)) %>%
   str_subset("spot", negate=T) %>%
   unique() %>% 
   print()
-# plot_items <-c("cell_count", "shape_area")
 
-# bar
+plot_items <-c("cell_count", "cell_area", "shape_extent")
+```
+
+## bar & line
+```{r}
+# count(pdata, cmpd)
+# count(pdata, conc)
+# count(pdata, cell, date, cmpd, density)
+
+
+# bar plot
 plot_list <- plot_items %>% 
   map(\(x) pdata %>% 
         # filter(between(Intensity_MeanIntensity_GFP, 200, 2000)) %>% 
@@ -283,31 +301,28 @@ pdf(str_glue("{Sys.Date()}_{plot_obj}_bar.pdf"), width=12, height=5)
 for(i in plot_list) print(i)
 while(dev.cur() != 1) dev.off()
 
-```
 
-```{r}
-pdata %>% 
+# line plot
+p <- pdata %>% 
   mutate(conc=as.numeric(as.character(conc))) %>% 
-  mutate(metric=cell_count*shape_area) %>% 
   # filter(conc == 0)
-  group_by(directory, cmpd) %>% 
-  transmute(conc=conc,
-            across(metric, ~ .x / mean(.x[conc == 0], na.rm = TRUE))) %>%
+  mutate(conc=conc,
+         across(all_of(plot_items), 
+                \(x) round(x / mean(x[cmpd == "DMSO"], na.rm=T), 3)),
+         .keep="used",
+         .by=c(cell, date, density)) %>% 
   # mutate(metric=metric / mean(metric[conc == 0])) %>% 
-  ungroup() %>% 
   # filter(between(Intensity_MeanIntensity_GFP, 200, 2000)) %>% 
-  ggplot(aes(conc, metric, fill=cmpd, color=cmpd)) +
+  ggplot(aes(conc, cell_count, fill=date, color=date)) +
   # stat_summary(geom="errorbar", fun.data=mean_sdl,
   #              fun.args=list(mult=1), # check Hmisc::smean.sdl
   #              width=0.4, color="grey20", # "#4575b4"
   #              position=position_dodge(0.75)) +
-  stat_summary(geom="errorbar", fun.data=mean_se,
-               width=0.4, #color="grey20",
-               position=position_dodge(0.75)) + 
-  stat_summary(geom="line", fun=mean, linewidth=0.5,
-               # width=0.7, #fill="#4575b4",
-               position=position_dodge(0.75)) + 
-  facet_wrap(vars(directory), ncol=1,
+  stat_summary(geom="errorbar", fun.data=mean_se, width=0.1) + #color="grey20",
+  stat_summary(geom="line", fun=mean, linewidth=0.5) + 
+  stat_summary(geom="point", fun=mean, size=1.5) + 
+  # geom_smooth(se=T) +
+  facet_wrap(vars(cell, density), ncol=2,
              scales="free_y", axes="all") +
   # facet_grid(rows=vars(Metadata_batch),
   #            cols=vars(Metadata_conc),
@@ -315,18 +330,21 @@ pdata %>%
   # ggpubr::stat_compare_means(
   #   aes(group=Metadata_temp, label=after_stat(p.format)),
   #   method="wilcox.test", size=1) +
-  labs(x="") +
-  # theme_bw()
   # guides(fill="none") +
   # scale_fill_hue(direction=-1) +
   # scale_fill_brewer("BuGn") +
   # scale_fill_manual(values=colorRampPalette(brewer.pal(9, "BuGn"))(11)) +
-  scale_x_continuous(transform=scales::log2_trans()) +
-  # scale_x_continuous(limits=c(1, 60000), 
-  #                   transform=scales::log2_trans()) +
-  # coord_cartesian(ylim=c(0, NA)) +
-  # labs(x="DNA usage (ng)") +
-  my_theme(angle=0)
+  scale_x_log10(limits=c(xrng[1], 10^ceiling(log10(xrng[2]))),
+                breaks=10^(floor(log10(xrng[1])):ceiling(log10(xrng[2]))),
+                labels=\(x) scales::label_math(10^.x)(log10(x))) +
+  labs(x="Concentration (uM), 3x dilution series") +
+  my_theme(angle=0) +
+  theme(legend.position="top")
+pdf(str_glue("{Sys.Date()}_{plot_obj}_line.pdf"), width=5, height=7)
+print(p)
+# for(i in plot_list) print(i)
+while(dev.cur() != 1) dev.off()
+
 ```
 
 
