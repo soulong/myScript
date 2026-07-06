@@ -1,9 +1,26 @@
-################## common terminal ###############
-# convert \r problem in Win system
-sudo apt install dos2unix
-dos2unix xxxx.sh
+################## Git ###############
+# revert git history and files
+git checkout --orphan latest_branch
+git add -A
+git commit -am "Initial commit"
+git branch -D main
+git branch -m main
+git push -f origin main
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
 
-# set proxy:
+# force pull remote to overwrite local
+git fetch --all
+git reset --hard origin/main
+git clean -fd
+
+# force oevrwrite remote with local
+git add .
+git commit -m "oevrwrite by local"
+git push -f origin main
+
+
+################## set proxy ###############
 conda proxy:
 	conda config --set proxy_servers.http http://127.0.0.1:7890
 	conda config --set proxy_servers.https http://127.0.0.1:7890
@@ -16,8 +33,13 @@ windows cmd:
 bash:
 	export http_proxy=http://127.0.0.1:7890
 	export https_proxy=http://127.0.0.1:7890
-	
-	
+
+
+################## common terminal ###############
+# convert \r problem in Win system
+sudo apt install dos2unix
+dos2unix xxxx.sh
+
 # release linux cache memory
 sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches'
 
@@ -161,18 +183,6 @@ UPDATE Per_Image SET Image_PathName_ch2="Z:/Data/Project_condensate_reporter/202
 UPDATE Per_Image SET Image_PathName_ch3="Z:/Data/Project_condensate_reporter/2025-03-30_JY/Images";
 UPDATE Per_Image SET Image_PathName_ch4="Z:/Data/Project_condensate_reporter/2025-03-30_JY/Images";
 UPDATE Per_Image SET Image_ObjectsPathName_mask_cp_masks_cell="Z:/Data/Project_condensate_reporter/2025-03-30_JY/Images";
-
-
-################## Git ###############
-# revert git history and files
-git checkout --orphan latest_branch
-git add -A
-git commit -am "Initial commit"
-git branch -D main
-git branch -m main
-git push -f origin main
-git reflog expire --expire=now --all
-git gc --prune=now --aggressive
 
 
 ################## pymol ###############
