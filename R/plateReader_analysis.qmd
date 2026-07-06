@@ -12,12 +12,11 @@ editor_options:
 rstudioapi::getActiveDocumentContext()$path |>
   dirname() |>
   setwd()
-# setwd("/media/hao/Data/2024-05-01_RTKs_active_mutations")
 
 # options("repos" = c(CRAN="https://mirrors.ustc.edu.cn/CRAN/")) 
 # options(BioC_mirror="https://mirrors.ustc.edu.cn/bioc/")
 options("repos" = c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
-options(BioC_mirror="https://mirrors.westlake.edu.cn/bioconductor")
+options(BioC_mirror="https://mirrors.tuna.tsinghua.edu.cn/bioconductor")
 
 # load packages
 library(tidyverse)
@@ -29,12 +28,13 @@ options(rio.import.class='tbl')
 
 # load helper function
 c("helper.R", 
-  "fit_ic50.R") %>% 
-  file.path(paste0(Sys.getenv('USERPROFILE'),
-                   "/GitHub/myScript/R"), .) %>%
+  "fit_ic50.R",
+  "ggplot_helper.R") %>% 
+  # file.path("F:\\GitHub\\myScript\\R", .) %>%
   walk(source)
 
-r"(C:\Users\haohe\Desktop\2026-05-17)" %>% 
+# set wd
+r"(F:\workspace\artes)" %>% 
   norm_path() %>% 
   setwd()
 ```
@@ -42,17 +42,16 @@ r"(C:\Users\haohe\Desktop\2026-05-17)" %>%
 
 ## read plate data
 ```{r}
-data <- list.files(".", ".csv", full.names = T) %>%
-    set_names(., nm = \(x) str_extract(x, "[^/\\\\]+(?=\\.csv)")) %>%
-    map(\(x) import(x, skip = 5)) %>%
-    list_rbind(names_to = "plate") %>%
-    transmute(
-        plate = plate,
-        well = transform_well_style(well_id),
-        value = result_channel_1
-    ) %>%
-    janitor::clean_names() %>%
-    glimpse()
+raw <- list.files("./2026-07-02_CTG_96h", ".csv", full.names = T) %>%
+  set_names(., nm = \(x) str_extract(x, "[^/\\\\]+(?=\\.csv)")) %>%
+  map(\(x) read_csv(x, skip=5)) %>%
+  list_rbind(names_to = "plate") %>%
+  janitor::clean_names() %>%
+  transmute(
+    plate = plate,
+    well = transform_well_style(well_id),
+    value = result_channel_1) %>%
+  glimpse()
 ```
 
 
@@ -65,147 +64,120 @@ plate_info_files <- list.files(
     print()
 
 if (length(plate_info_files) > 0) {
-    plate_info <- plate_info_files %>%
-        map(read_metadata) %>%
-        list_rbind(names_to='plate') %>%
-        # rename(Metadata_vector=value) %>%
-        # separate_wider_delim(value, delim=regex("[+ ]"),
-        #                      names=c("Metadata_vector", "Metadata_type", "Metadata_adaptor"),
-        #                      too_few="align_start",
-        #                      cols_remove=T) %>%
-        # mutate(Metadata_vector=factor(Metadata_vector, c("Gal4DBD","APP","NOTCH1"))) %>%
-        mutate(RSL3_conc = as.numeric(RSL3_conc)) %>%
-        print()
+  plate_info <- plate_info_files %>%
+    map(read_metadata) %>%
+    {
+      if(length(plate_info_files) > 1) list_rbind(., names_to='plate') else list_rbind(.)
+    } %>% 
+    # rename(Metadata_vector=value) %>%
+    # separate_wider_delim(value, delim=regex("[+ ]"),
+    #                      names=c("Metadata_vector", "Metadata_type", "Metadata_adaptor"),
+    #                      too_few="align_start",
+    #                      cols_remove=T) %>%
+    # mutate(Metadata_vector=factor(Metadata_vector, c("Gal4DBD","APP","NOTCH1"))) %>%
+    # mutate(RSL3_conc = as.numeric(RSL3_conc)) %>%
+    print()
 }
 
 # merge with plate_info
 if (exists("plate_info")) {
-    data <- data %>%
-        left_join(plate_info, .) %>%
-        # right_join(plate_info, .) %>%
-        # filter() %>%
-        glimpse()
+  data <- raw %>%
+    left_join(plate_info, .) %>%
+    # right_join(plate_info, .) %>%
+    # filter() %>%
+    glimpse()
 }
-```
-
-
-## modify data
-```{r}
-data <- data %>% 
-  mutate(value=ifelse(cell=='ES-2' & RSL3_conc==10 & cmpd=='Chromceptin', 
-                      value * 0.3, value)) %>%
-  mutate(value=ifelse(cell=='HuH6' & RSL3_conc==3.3333 & cmpd=='Y2-1', 
-                      value * 0.55, value)) %>% 
-  group_by(cell, cmpd) %>% 
-  mutate(value_norm=value / value[RSL3_conc == 0]) %>% 
-  ungroup() %>% 
-  mutate(cmpd=as.factor(cmpd) %>% fct_relevel('DMSO')) %>% 
-  mutate(cell=as.factor(cell) %>% fct_relevel('293T','SNU2535')) %>% 
-  glimpse()
-```
-
-
-## save data
-```{r}
-data %>% 
-  export(str_glue("{Sys.Date()}_tidy_data.xlsx"))
 ```
 
 
 
 # ---------------------------------
-# plot data
+# plot
 
-## bar plot
+## pdata
 ```{r}
-pdf(str_glue("{Sys.Date()}_bar.pdf"), width=7, height=5)
+pdata <- data %>%
+  mutate(value=round(as.numeric(value), 0)) %>%
+  mutate(conc=round(as.numeric(conc), 4)) %>%
+  separate_wider_regex(plate, c("CTG_96h_", cell=".*"), cols_remove=T) %>% 
+  mutate(cell=factor(cell, c("H1299", "TPC1", "FPC133"))) %>% 
+  ## norm by day0
+  # mutate(across(!value,
+  #               \(x) round(x / mean(x[date == "06-28"], na.rm=T), 3)),
+  #        .keep="used",
+  #        .by=c(cell, cmpd, density, conc)) %>%
+  ## norm by DMSO
+  mutate(value_norm = round(value / mean(value[cmpd == "DMSO"], na.rm=T), 3),
+         .keep="used",
+         .by=c(cell, density, conc)) %>%
+  ## norm by lowest conc
+  # mutate(cmpd=cmpd,
+  #        value_norm = round(value / mean(value[conc == min(.data[["conc"]])]), 3),
+  #        .keep="used",
+  #        .by=c(cell, density)) %>%
+  filter(!(cmpd %in% c("DMSO"))) %>% 
+  glimpse()
 
-data %>% 
-  ggplot(aes(cmpd, value_norm, fill=as.factor(RSL3_conc))) +
-  stat_summary(geom="errorbar", fun.data=mean_se,
-               width=0.4, color="grey20",
-               position=position_dodge(0.75)) + 
-  stat_summary(geom="bar", fun=mean, color="grey50", linewidth=0.25,
-               width=0.7, #fill="#4575b4",
-               position=position_dodge(0.75)) + 
-  facet_wrap(vars(cell), ncol=1,
-             scales="free_y", axes="all") +
-  # facet_grid(rows=vars(Metadata_batch),
-  #            cols=vars(Metadata_conc),
-  #            scales="free_x", axes="all") +
-  # theme_bw()
+# set x conc range
+xrng <- range(pdata$conc[pdata$conc > 0], na.rm=T) %>% print()
+```
+
+## save
+```{r}
+pdata %>% 
+  export(str_glue("{Sys.Date()}_CTG.xlsx"))
+```
+
+## plot
+```{r}
+# select last point of each line
+label_df <- pdata %>%
+  slice_max(conc, n=1, by=c(cell, density, cmpd)) %>% 
+  print()
+
+pdf(str_glue("{Sys.Date()}_CTG.pdf"), width=9, height=9)
+
+pdata %>% 
+  ggplot(aes(conc, value_norm, fill=cmpd, color=cmpd)) +
+  # stat_summary(geom="errorbar", fun.data=mean_sdl,
+  #              fun.args=list(mult=1), # check Hmisc::smean.sdl
+  #              width=0.4, color="grey20", # "#4575b4"
+  #              position=position_dodge(0.75)) +
+  # stat_summary(geom="bar", fun=mean, color="grey50", linewidth=0.25,
+  #              width=0.7, #fill="#4575b4",
+  #              position=position_dodge(0.75)) + 
+  stat_summary(geom="errorbar", fun.data=mean_se, width=0.1) + #color="grey20",
+  stat_summary(geom="line", fun=mean, linewidth=0.5) + 
+  stat_summary(geom="point", fun=mean, size=1.5) + 
+  # geom_smooth(se=T) +
+  facet_wrap(vars(cell, density), ncol=2,
+             scales="free_x", axes="all") +
+  # facet_grid(rows=vars(cell, density),
+  #            cols=vars(cmpd),
+  #            scales="free_y", axes="all") +
+  # ggpubr::stat_compare_means(
+  #   aes(group=Metadata_temp, label=after_stat(p.format)),
+  #   method="wilcox.test", size=1) +
   # guides(fill="none") +
   # scale_fill_hue(direction=-1) +
   # scale_fill_brewer("BuGn") +
-  scale_fill_manual(values=colorRampPalette(brewer.pal(9, "BuGn"))(11)) +
-  # scale_x_continuous(limits=c(1, 60000), 
-  #                    transform=scales::log2_trans()) +
-  # coord_cartesian(ylim=c(0, NA)) +
-  labs(x="", y="Normalized CTG") +
-  my_theme(angle=0)# + theme(legend.position="none")
-
-while(dev.cur() != 1) dev.off()
-```
-
-
-## line plot
-```{r}
-# select last point of each line
-label_df <- data %>%
-  group_by(cell, cmpd) %>%
-  slice_max(RSL3_conc, n=1, with_ties=F) %>%
-  ungroup() %>% 
-  print()
-
-
-pdf(str_glue("{Sys.Date()}_line.pdf"), width=3.5, height=9)
-
-data %>% 
-  mutate(RSL3_conc = ifelse(RSL3_conc != 0, RSL3_conc, 
-                            nth(unique(RSL3_conc), -2) / 10)) %>% 
-  ggplot(aes(RSL3_conc, value_norm, color=cmpd)) +
-  stat_summary(geom="errorbar", fun.data=mean_se, linewidth=0.25,
-               width=0.1,  #color="grey20"
-               ) + 
-  stat_summary(geom="line", fun=mean, linewidth=0.5, #color="grey50"
-               ) + 
-  # geom_dl(aes(label=cmpd), method=list("last.points", cex=0.5, rot=0)) +
-  facet_wrap(vars(cell), ncol=1,
-             scales="free_y", axes="all") +
-  # facet_grid(rows=vars(Metadata_batch),
-  #            cols=vars(Metadata_conc),
-  #            scales="free_x", axes="all") +
-  # theme_bw()
-  guides(color="none") +
-  # scale_fill_hue(direction=-1) +
-  scale_color_brewer(palette="Set2") +
-  # scale_fill_manual(values=colorRampPalette(brewer.pal(9, "BuGn"))(11)) +
-  scale_x_continuous(#limits=c(1, 60000),
-                     transform=scales::log10_trans()) +
+  # scale_color_manual(values=colorRampPalette(brewer.pal(9, "Set1"))(15)) +
+  scale_x_log10(#limits=c(xrng[1], 10^ceiling(log10(xrng[2]))),
+                breaks=10^(floor(log10(xrng[1])):ceiling(log10(xrng[2]))),
+                labels=\(x) scales::label_math(10^.x)(log10(x))) +
+  # label lines
   ggrepel::geom_text_repel(
-    aes(label = cmpd), size=2, data = label_df, 
-    # repel settings
-    direction = "y",
-    hjust = 0,
-    # move labels slightly right
-    nudge_x = 0.5,
-    # connector line
-    segment.color = "grey50",
-    segment.size = 0.5,
-    # padding
-    box.padding = 0.3,
-    point.padding = 0.2,
-    # allow labels outside panel
-    force = 2
-  ) +
-  # coord_cartesian(xlim=c(nth(unique(data$RSL3_conc), -2) / 10, 
-  #                        nth(unique(data$RSL3_conc), 1) * 10)) +
-  labs(x="", y="Normalized CTG") +
-  my_theme(angle=0)# + theme(legend.position="none")
+    aes(label=cmpd, color=cmpd), size=2, data=label_df, 
+    direction="y", hjust=0, nudge_x=0.5,
+    segment.size=0.25, #segment.color="grey50", 
+    box.padding=0.3, point.padding=0.2,
+    force=2, max.overlaps=20, show.legend=F) +
+  labs(x="Concentration (uM)") +
+  my_theme(angle=0) +
+  theme(legend.position="top")
 
 while(dev.cur() != 1) dev.off()
 ```
-
 
 
 
@@ -216,10 +188,10 @@ while(dev.cur() != 1) dev.off()
 ```{r}
 # fitting_source: cell, cell_stat, cell_field, cell_field_stat
 # glimpse(summary_per_field_normCtrl)
-fitting_obj <- "cell_norm"
-fitting_X <- "Metadata_conc"
-fitting_Y <- "Granularity_2_GFP"
-fitting_groupby <- c("Metadata_prefix","Metadata_cmpd")
+fitting_obj <- "pdata"
+fitting_X <- "conc"
+fitting_Y <- "CTG_norm"
+fitting_groupby <- c("cell", "density", "cmpd")
 # fitting_groupby <- NULL
 ```
 
@@ -228,7 +200,7 @@ fitting_groupby <- c("Metadata_prefix","Metadata_cmpd")
 fitted <- get(fitting_obj) %>% 
   # filter(Metadata_cmpd=="Sema") %>% 
   fit_dose_response(
-    fitting_X, fitting_Y, fitting_groupby, n_worker=1
+    fitting_X, fitting_Y, fitting_groupby, n_worker=8
     # # parameters from dr4pl::dr4pl()
     # trend = "decreasing",
     # method.init = "Mead",
@@ -246,47 +218,66 @@ fitted_prepared <- plot_dose_response_dataPrepare(
 conc_series <- unique(pull(unnest(fitted_prepared, data), dose))
 log_trans_sigma <- conc_series %>% setdiff(0) %>% min() %>% 
   magrittr::divide_by(10)
+
 axis_breaks <- conc_series %>% setdiff(0) %>% range() %>% 
   log10() %>% round() %>% {seq(.[1], .[2], by=1)} %>% {10^(.)}
+
 if(0 %in% conc_series) axis_breaks <- c(0, axis_breaks)
 
-p <-  ggplot() +
-  stat_summary(aes(dose, response),
-               geom="pointrange", 
-               color="#4575b4", size=0.2,
-               fun=mean, 
-               fun.min = function(x) mean(x) - se(x), 
-               fun.max = function(x) mean(x) + se(x),
-               data=unnest(fitted_prepared, data)) +
-  geom_line(aes(x,y), color="#4575b4",
-            data=unnest(fitted_prepared, pred)) + 
-  geom_text(aes(x, y, label=label), 
-    size=2, nudge_x=1, nudge_y=-0.25,
-    data=unnest(fitted_prepared, pred) %>% 
-      arrange(x, y) %>% 
-      slice_head(n=1, by=any_of(fitting_groupby)) %>% 
-      mutate(label=str_c("IC50: ", format_num_auto(IC50_Estimate),"\n",
-                         "Upper: ", format_num_auto(as.numeric(Upper_Estimate)*100),"\n",
-                         "Lower: ", format_num_auto(as.numeric(Lower_Estimate)*100)))) +
-  facet_wrap(vars(Metadata_prefix),
+label_df_ds <- unnest(fitted_prepared, pred) %>% 
+  group_by(cell, density, cmpd) %>% 
+  mutate(x_diff=x-median(as.numeric(IC50_Estimate))) %>% 
+  slice_min(abs(x_diff), n=1, with_ties=F) %>% 
+  dplyr::select(x, y) %>% 
+  ungroup() %>% 
+  print()
+
+
+p <- ggplot() +
+  # stat_summary(aes(dose, response, color=cmpd),
+  #              geom="pointrange", size=0.2, fun=mean,
+  #              fun.min = function(x) mean(x) - se(x),
+  #              fun.max = function(x) mean(x) + se(x),
+  #              # color="#4575b4",
+  #              data=unnest(fitted_prepared, data)) +
+  geom_line(aes(x, y, color=cmpd), #color="#4575b4",
+            data=unnest(fitted_prepared, pred), show.legend=F) +
+  # geom_text(aes(x, y, label=label), 
+  #   size=2, nudge_x=1, nudge_y=-0.25,
+  #   data=unnest(fitted_prepared, pred) %>% 
+  #     arrange(x, y) %>% 
+  #     slice_head(n=1, by=any_of(fitting_groupby)) %>% 
+  #     mutate(label=str_c("IC50: ", format_num_auto(IC50_Estimate),"\n",
+  #                        "Upper: ", format_num_auto(as.numeric(Upper_Estimate)*100),"\n",
+  #                        "Lower: ", format_num_auto(as.numeric(Lower_Estimate)*100)))) +
+  facet_wrap(vars(cell, density), ncol=2,
              scales="fixed", axes="all") +
   # facet_grid(rows=vars(Metadata_prefix),
   #            cols=vars(Metadata_vector),
   #            scales="fixed", axes="all") +
   labs(x="Dose (uM)", y=fitting_Y, caption="mean_se") +
-  scale_x_continuous(
-    transform=scales::pseudo_log_trans(sigma=log_trans_sigma, base=10),
-    breaks=axis_breaks,
-    # labels=scales::label_number(drop0trailing=T),
-    expand=expansion(mult=c(0.05, 0.1)),
-    labels=function(lab) {
-      do.call(expression, lapply(paste(lab), function(x) bquote(.(x))))
-      } ) +
-  # coord_cartesian(ylim=c(0, NA)) +
-  my_theme(angle=45)
+  # scale_x_continuous(
+  #   transform=scales::pseudo_log_trans(sigma=log_trans_sigma, base=10),
+  #   breaks=axis_breaks,
+  #   # labels=scales::label_number(drop0trailing=T),
+  #   expand=expansion(mult=c(0.05, 0.1)),
+  #   labels=function(lab) {
+  #     do.call(expression, lapply(paste(lab), function(x) bquote(.(x))))
+  #   } ) +
+  scale_x_log10(#limits=c(xrng[1], 10^ceiling(log10(xrng[2]))),
+    breaks=10^(floor(log10(xrng[1])):ceiling(log10(xrng[2]))),
+    labels=\(x) scales::label_math(10^.x)(log10(x))) +
+  # label lines
+  ggrepel::geom_label_repel(
+    aes(x, y, label=cmpd, color=cmpd), size=2, data=label_df_ds, 
+    direction="y", hjust=0, nudge_x=0.5,
+    segment.size=0.25, #segment.color="grey50", 
+    box.padding=0.3, point.padding=0.2,
+    force=2, max.overlaps=20, show.legend=F) +
+  my_theme(angle=0)
 # p
-ggsave(str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.pdf"),
-        p, width=12, height=3, limitsize=F)
+ggsave(str_glue("{Sys.Date()}_CTG_DoseFit_{fitting_Y}.pdf"),
+        p, width=12, height=12, limitsize=F)
 ```
 
 ## save fitted data
@@ -304,6 +295,6 @@ fitted_save_data <- fitted %>%
 
 writexl::write_xlsx(
   list(fitted=fitted_save_data), 
-  str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.xlsx"))
+  str_glue("{Sys.Date()}_CTG_DoseFit_{fitting_Y}.xlsx"))
 ```
 

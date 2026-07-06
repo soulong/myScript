@@ -24,6 +24,16 @@ c("read_plateReader.R",
   "read_plate_info.R") %>% 
   file.path("/mnt/f/GitHub/myScript/R_helper", .) %>% 
   walk(source)
+
+# load helper function
+c("helper.R", 
+  "fit_ic50.R",
+  "ggplot_helper.R") %>% 
+  file.path("F:\\GitHub\\myScript\\R", .) %>%
+  walk(source)
+
+setwd("F:\\workspace\\artes")
+
 ```
 
 # read data
