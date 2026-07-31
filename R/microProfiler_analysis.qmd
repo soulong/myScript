@@ -19,94 +19,138 @@ options("repos" = c(CRAN="https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
 options(BioC_mirror="https://mirrors.tuna.tsinghua.edu.cn/bioconductor")
 
 # load packages
-library(tidyverse)
 library(rio)
+options(rio.import.class='tbl')
 library(patchwork)
 library(RSQLite)
 library(RColorBrewer)
-options(rio.import.class='tbl')
+library(tidyverse)
 
 # load helper function
-c("helper.R", 
-  "fit_ic50.R",
-  "ggplot_helper.R") %>% 
+c("helper.R") %>% 
   # file.path("F:\\GitHub\\myScript\\R", .) %>%
   walk(source)
 
 # set wd
-r"(F:\workspace\artes)" %>% 
+r"(D:\P53 TS screening)" %>% 
   norm_path() %>% 
   setwd()
+getwd()
 ```
 
-## read sqlite db
+## read microprofiler
 ```{r}
-read_sqlite <- function(f, skip_tables=c('metadata')) {
-  print(paste0('read table: ', f))
-  
-  conn <- DBI::dbConnect(RSQLite::SQLite(), dbname=f)
-  tables <- DBI::dbListTables(conn) %>% 
-    setdiff(skip_tables) %>% 
-    set_names(., nm=.)
-  
-  res <- tryCatch(
-    map(tables, 
-        \(x) tbl(conn, x) %>% collect() %>% 
-          janitor::remove_constant(quiet=F)
-    ),
-    error = function(e) print(e),
-    finally = DBI::dbDisconnect(conn)
-  )
-  
-  return(res)
-}
-
-result_db_files <- list.files(
-  '.', pattern='results.db', recursive=T, full.names=T) %>% 
+# microprofiler
+db_files <- list.files(
+  '.', pattern='result.*db$', recursive=T, full.names=T) %>% 
   set_names(., nm=basename(dirname(.))) %>%
   print()
-
-# read the database into list
-raw_list <- map(result_db_files, read_sqlite)
-
+if(length(db_files) > 0) {
+  raw_list <- map(db_files, read_sqlite)
 # merge all same table into one list item
-raw <- names(raw_list[[1]]) %>% 
-  set_names(names(raw_list[[1]])) %>% 
-  map(\(x) map(raw_list, \(y) y[[x]]) %>% list_rbind(names_to='directory'))
+  raw <- names(raw_list[[1]]) %>% 
+    set_names(names(raw_list[[1]])) %>% 
+    map(\(x) map(raw_list, \(y) y[[x]]) %>% 
+          list_rbind(names_to='directory')
+        )
+  print(names(raw))
+  # glimpse(mp_raw)
+}
 
-# print(raw)
+if('cell' %in% names(raw)) {
+  cell <- raw$cell %>% 
+    # filter(is_boundary < 1) %>% 
+    # dplyr::select(!is_boundary) %>% 
+    # mutate(intensity_mean_GFP2IFP=intensity_mean_BFP/
+    #          intensity_mean_IFP) %>%
+    # separate_wider_regex(directory, c("2026-", date=".*", "_P._", cell=".*"),
+    #                      too_few = "align_start", cols_remove=F) %>%
+    # filter(!is.na(density)) %>% 
+    # mutate(cell=factor(cell, c("H1299","TPC1","FPC133"))) %>% 
+    glimpse()
+  
+  # count(cell, well)
+}
 ```
 
-## set channel name
+## read inference 
+```{r}
+mi_db_files <- list.files(
+  '.', pattern='infer.*db$', recursive=T, full.names=T) %>% 
+  set_names(., nm=basename(dirname(.))) %>%
+  print()
+if(length(mi_db_files) > 0) {
+  mi_raw_list <- mi_db_files %>% 
+    map(\(x) read_sqlite(x, skip_tables=c(
+      'reduction_pca_variance','sqlite_sequence')) %>%  
+        # remove feature BLOB)
+        map(\(y) dplyr::select(y, !any_of('features')) %>% 
+              dplyr::arrange(uid))
+    )
+  # merge all same table into one list item
+  mi_raw <- names(mi_raw_list[[1]]) %>% 
+    set_names(names(mi_raw_list[[1]])) %>% 
+    map(\(x) map(mi_raw_list, \(y) y[[x]]) %>% 
+          list_rbind(names_to='directory') )
+  # model inference have uid in all tables
+  mi_tidy <- base::Reduce(
+    \(x, y) list_cbind_efficient(x, y, by=c("directory", "uid")), mi_raw) %>% 
+    as_tibble() %>% 
+    dplyr::select(!any_of(c('filename', 'mask_filename', 'uid')))
+  # glimpse(mi_tidy)
+}
+```
+
+## merge all db
+```{r}
+if(exists('mi_tidy')) {
+  join_cols <- intersect(names(cell), names(mi_tidy)) %>% print()
+  
+  cell[join_cols] <- lapply(cell[join_cols], as.character)
+  mi_tidy[join_cols] <- lapply(mi_tidy[join_cols], as.character)
+  
+  cell <- left_join(cell, mi_tidy) %>% 
+    {if('directory' %in% colnames(.)) {
+      relocate(., contains('directory'), .before=1) %>% 
+        mutate(directory=str_replace_all(directory, '__.*', ''))
+    } else . } %>% 
+    {if('pc_1' %in% colnames(.)) {
+      dplyr::filter(., !is.na(pc_1))
+    } else . } %>% 
+    glimpse()
+}
+```
+
+## set channel
 ```{r}
 if(F) {
   # manually define channel names
   channel_names <- c("BFP"="ch1", "GFP"="ch2", "IFP"="ch3")
   
   for(idx in seq_along(channel_names)) {
-    for(table in names(raw)) {
-      # rename each table
-      print(paste0('rename channel: ', table, 
-                   'with: ', channel_names[idx]))
-      raw[[table]] <- raw[[table]] %>% 
-        rename_with(\(x) str_replace(
-          x, channel_names[idx], names(channel_names)[idx]))
-    }
+    # rename each table
+    print(paste0('rename channel: ', table, 
+                 'with: ', channel_names[idx]))
+    cell <- cell %>% 
+      rename_with(\(x) str_replace(
+        x, channel_names[idx], names(channel_names)[idx]))
   }
 }
 ```
 
-## merge plate info
+# merge plate info
 ```{r}
 plate_info_files <- list.files(
-  ".", "plate_info.xlsx", recursive=T, full.names=T) %>% 
+  "plate_info_label", ".*xlsx", recursive=T, full.names=T) %>% 
+  set_names(., nm=basename(.) %>% str_replace_all(".xlsx", "")) %>% 
   print()
 
 if(length(plate_info_files) > 0) {
   plate_info <- plate_info_files %>%
     map(read_metadata) %>%
     {
-      if(length(plate_info_files) > 1) list_rbind(., names_to='plate') else list_rbind(.)
+      if(length(plate_info_files) > 1) 
+        list_rbind(., names_to='directory') else list_rbind(.)
     } %>% 
     # rename(Metadata_vector=value) %>% 
     # separate_wider_delim(value, delim=regex("[+ ]"),
@@ -118,95 +162,62 @@ if(length(plate_info_files) > 0) {
     print()
 }
 
+setdiff(plate_info$directory, cell$directory)
+cell <- cell %>% 
+    separate_wider_regex(directory, c(
+    directory=".*", "[ _]", temperature="22|37", "[ _].*", "_+202.*Measurement"), 
+    cols_remove = T, too_few = "align_start") %>% 
+  print()
+
 # merge with plate_info
-if(exists("plate_info")) {
-  for(table in names(raw)) {
-    print(paste0('merge plate_info: ', table))
-    raw[[table]] <- raw[[table]] %>% 
-      right_join(plate_info, .) %>% 
-      {if('directory' %in% colnames(.)) {
-        relocate(., contains('directory'), .before=1) %>% 
-          mutate(directory=str_replace_all(directory, '__.*', ''))
-      } else . }
-  }
-  
-  # print(raw)
-}
+cell <- cell %>% 
+  right_join(plate_info, .) %>% 
+  glimpse()
 ```
 
 
-## !! modify object
+# modify object
 ```{r}
-if(F) {
-  count(raw$cell, is_boundary)
-  glimpse(raw$cell)
-}
+cell_tidy <- cell %>% 
+  dplyr::filter(directory != '20251029 P53 ts mutant screening') %>% 
+  mutate(condition=str_c(temperature, treatment, sep="/") %>% 
+           factor(c("37/None","22/None",
+                    "37/DMSO","37/Bleomycin",
+                    "22/DMSO","22/Bleomycin")), 
+         .before = temperature) %>% 
+  glimpse()
 
-if('image' %in% names(raw)) {
-  image <- raw$image %>% 
-    dplyr::select(!starts_with('shape_')) %>% 
-    glimpse()
-}
-
-if('cell' %in% names(raw)) {
-  cell <- raw$cell %>% 
-    # filter(is_boundary < 1) %>% 
-    # dplyr::select(!is_boundary) %>% 
-    # mutate(intensity_mean_GFP2IFP=intensity_mean_BFP/
-    #          intensity_mean_IFP) %>%
-    separate_wider_regex(directory, c("2026-", date=".*", "_P._", cell=".*"), 
-                         too_few = "align_start", cols_remove=F) %>% 
-    filter(!is.na(density)) %>% 
-    mutate(cell=factor(cell, c("H1299","TPC1","FPC133"))) %>% 
-    glimpse()
-  
-  # count(cell, well)
-}
-
-if(F) {
-  cell$shape_eccentricity %>% quantile(c(0.01,0.05,0.1,0.5,0.9,0.95,0.99))
-  cell$shape_diameter %>% quantile(c(0.01,0.05,0.1,0.5,0.9,0.95,0.99))
-  cell$intensity_mean_BFP %>% quantile(c(0.01,0.05,0.1,0.5,0.9,0.95,0.99))
-  ggplot(cell, aes(intensity_mean_GFP)) +
-    geom_histogram(binwidth=20) +
-    facet_wrap(vars(vector, cmpd), axes="all") +
-    coord_cartesian(xlim=c(20, 3000)) +
-    # coord_cartesian(xlim=c(1e3, 2e6)) +
-    # scale_x_log10() +
-    my_theme(0)
-}
-
+count(cell_tidy, directory)
+count(cell_tidy, well)
+count(cell_tidy, field)
 ```
 
 
-## summarize to field
+# summarize to field
 ```{r}
 measure_pattern <- "shape|intensity|granularity|glcm|radial"
 
-meta_colnames <- colnames(cell) %>% 
+meta_colnames <- colnames(cell_tidy) %>% 
   str_subset(measure_pattern, negate=T) %>% 
   setdiff(c("object_id", "label", "is_boundary")) %>% 
+  str_subset(c("^pc_"), negate = T) %>% 
+  str_subset(c("^umap_"), negate = T) %>% 
+  str_subset(c("^pred_"), negate = T) %>% 
   print()
 
-# meta_colnames_no_field <- meta_colnames %>% 
-#   setdiff(c("field")) %>% 
-#   print()
-
 # summarize per field
-cell_field <- cell %>% 
+cell_field <- cell_tidy %>% 
   reframe(across(matches(measure_pattern), 
                  \(x) mean(x, trim=0.1, na.rm=T)),
-          cell_count=n(),
+          cell_count = n(),
+          # custom stats
+          pos_prob = mean(pred_class == "pos"),
+          pos_ratio = sum(pred_prob > 0.6 & pred_class == "pos") / length(pred_prob),
+          # group by
           .by=any_of(c(meta_colnames))) %>% 
   select(!starts_with("intensity_")) %>% 
   mutate(cell_area=round(shape_area * cell_count)) %>% 
   glimpse()
-
-image_field <- image %>% 
-  reframe(across(matches(measure_pattern), 
-                 \(x) mean(x, trim=0, na.rm=T)),
-          .by=any_of(c(meta_colnames))) %>% 
-  print()
 ```
 
 
@@ -229,8 +240,7 @@ plot_items <- colnames(get(plot_obj)) %>%
   unique() %>% 
   print()
 
-plot_items <-c("cell_count", "cell_area", "shape_extent")
-
+# plot_items <-c("cell_count", "cell_area", "shape_extent")
 
 pdata <- get(plot_obj) %>% 
   # {if("well" %in% colnames(.)) {
@@ -241,43 +251,37 @@ pdata <- get(plot_obj) %>%
   #              {factor(., unique(sort(as.numeric(.))))}, 
   #            .before=1)
   # } else .} %>% 
-  
+
   # mutate(conc=factor(conc, sort(unique(conc)))) %>%
   # mutate(conc=as.numeric(as.character(conc))) %>% 
-  mutate(conc=round(as.numeric(conc), 4)) %>%
+  # mutate(conc=round(as.numeric(conc), 4)) %>%
   
-  # norm by day0 ---------------------------
-  mutate(across(all_of(plot_items),
-                \(x) round(x / mean(x[date == "06-28"], na.rm=T), 3)),
-         .keep="used",
-         .by=c(cell, cmpd, density, conc)) %>%
-  ## norm by DMSO ---------------------------
-  # mutate(conc=conc,
-  #        across(all_of(plot_items), 
-  #               \(x) round(x / mean(x[cmpd == "DMSO"], na.rm=T), 3)),
+  # # norm by day0 ---------------------------
+  # mutate(across(all_of(plot_items),
+  #               \(x) round(x / mean(x[date == "06-28"], na.rm=T), 3)),
   #        .keep="used",
-  #        .by=c(cell, date, density)) %>% 
-  ## norm by lowest conc ---------------------------
-  mutate(cmpd=cmpd,
-         across(all_of(plot_items),
-                \(x) round(x / mean(x[conc == min(.data[["conc"]])]), 3)),
-         .keep="used",
-         .by=c(cell, date, density)) %>%
+  #        .by=c(cell, cmpd, density, conc)) %>%
+  # ## norm by DMSO ---------------------------
+  # # mutate(conc=conc,
+  # #        across(all_of(plot_items), 
+  # #               \(x) round(x / mean(x[cmpd == "DMSO"], na.rm=T), 3)),
+  # #        .keep="used",
+  # #        .by=c(cell, date, density)) %>% 
+  # ## norm by lowest conc ---------------------------
+  # mutate(cmpd=cmpd,
+  #        across(all_of(plot_items),
+  #               \(x) round(x / mean(x[conc == min(.data[["conc"]])]), 3)),
+  #        .keep="used",
+  #        .by=c(cell, date, density)) %>%
   
   # filter(!is.na(Metadata_vector)) %>%
   glimpse()
-
-
-# set x conc range
-xrng <- range(pdata$conc[pdata$conc > 0], na.rm=T) %>% print()
-
 ```
 
 ## save
 ```{r}
 list(
-  # image=image, cell=cell,
-  # image_field=image_field, 
+  # cell_tidy=cell_tidy,
   cell_field=cell_field
 ) %>% 
   export(str_glue("{Sys.Date()}_cell_field.xlsx"))
@@ -286,31 +290,32 @@ list(
 
 ## plot
 ```{r}
-# count(pdata, cmpd)
-# count(pdata, conc)
-# count(pdata, cell, date, cmpd, density)
+# set x conc range
+# xrng <- range(pdata$conc[pdata$conc > 0], na.rm=T) %>% print()
+# scale_x_log10(#limits=c(xrng[1], 10^ceiling(log10(xrng[2]))),
+#               breaks=10^(floor(log10(xrng[1])):ceiling(log10(xrng[2]))),
+#               labels=\(x) scales::label_math(10^.x)(log10(x))) +
 
 plot_list <- plot_items %>% 
   map(\(x) pdata %>% 
-        filter(density == "4K") %>%
-        filter(date != "06-28") %>%
-        ggplot(aes(conc, !!as.name(x), fill=date, color=date)) +
+        ggplot(aes(mutant, !!as.name(x), fill=condition, color=condition)) +
         # stat_summary(geom="errorbar", fun.data=mean_sdl,
         #              fun.args=list(mult=1), # check Hmisc::smean.sdl
         #              width=0.4, color="grey20", # "#4575b4"
         #              position=position_dodge(0.75)) +
-        # stat_summary(geom="errorbar", fun.data=mean_se,
-        #              width=0.4, color="grey20",
-        #              position=position_dodge(0.75)) + 
-        stat_summary(geom="errorbar", fun.data=mean_se, width=0.1) + #color="grey20",
-        stat_summary(geom="line", fun=mean, linewidth=0.5) + 
-        stat_summary(geom="point", fun=mean, size=1.5) + 
+        stat_summary(geom="errorbar", fun.data=mean_se,
+                    width=0.4, #color="grey20",
+                     position=position_dodge(0.75)) +
+        # stat_summary(geom="errorbar", fun.data=mean_se, width=0.1) + #color="grey20",
+        stat_summary(geom="bar", fun=mean, width=0.5,
+                     position=position_dodge(0.75)) +
+        # stat_summary(geom="point", fun=mean, size=1.5) +
         # geom_smooth(se=T) +
-        # facet_wrap(vars(cell, density), ncol=2,
+        facet_wrap(vars(directory), ncol=4,
+                   scales="free_x", axes="all") +
+        # facet_grid(rows=vars(cell, density),
+        #            cols=vars(cmpd),
         #            scales="free_y", axes="all") +
-        facet_grid(rows=vars(cell, density),
-                   cols=vars(cmpd),
-                   scales="free_y", axes="all") +
         # ggpubr::stat_compare_means(
         #   aes(group=Metadata_temp, label=after_stat(p.format)),
         #   method="wilcox.test", size=1) +
@@ -318,14 +323,12 @@ plot_list <- plot_items %>%
         # scale_fill_hue(direction=-1) +
         # scale_fill_brewer("BuGn") +
         # scale_fill_manual(values=colorRampPalette(brewer.pal(9, "BuGn"))(11)) +
-        scale_x_log10(#limits=c(xrng[1], 10^ceiling(log10(xrng[2]))),
-                      breaks=10^(floor(log10(xrng[1])):ceiling(log10(xrng[2]))),
-                      labels=\(x) scales::label_math(10^.x)(log10(x))) +
-        labs(x="Dose (uM)") +
-        my_theme(angle=0) +
+        # scale_log("x") + 
+        # labs(x="Dose (uM)") +
+        my_theme(angle=90) +
         theme(legend.position="top")
   )
-pdf(str_glue("{Sys.Date()}_{plot_obj}_line_4K.pdf"), width=36, height=7)
+pdf(str_glue("{Sys.Date()}_{plot_obj}_plot.pdf"), width=16, height=7)
 # print(plot_list[1])
 for(i in plot_list) print(i)
 while(dev.cur() != 1) dev.off()
@@ -495,4 +498,7 @@ writexl::write_xlsx(
   list(fitted=fitted_save_data), 
   str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.xlsx"))
 ```
+
+
+
 

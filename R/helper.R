@@ -1,13 +1,22 @@
 
 library(rio)
-library(ggplot2)
+options(rio.import.class='tbl')
+library(scales)
 library(ggsci)
-
-
+library(rlang)
+library(transport)
+library(energy)
+# library(GRmetrics)
+require(bestNormalize)
+library(tidyverse)
+library(furrr)
 
 # **********************************************************************
 # general func -----------------------------------------------------------
 # **********************************************************************
+
+se <- function(x) {sd(x, na.rm=T)/sqrt(length(x)-1)}
+
 
 #' Format tidy well style
 #'
@@ -24,9 +33,40 @@ transform_well_style <- function(wells) {
 
 
 
-# **********************************************************************
-# os related -----------------------------------------------------------
-# **********************************************************************
+#' Find Best Match from Pattern List
+#'
+#' @description Searches through a vector of choices using a list of patterns,
+#'   returning the first match found. Useful for auto-selecting reference values
+#'   from user data.
+#'
+#' @param choices Character vector of available choices.
+#' @param patterns Character vector of patterns to search for (in order of priority).
+#'
+#' @return The first choice matching any pattern, or the first choice if no
+#'   matches are found. Returns empty string if choices is empty.
+#'
+#' @examples
+#' find_best_match(c("DMSO", "PBS", "Water"), c("blank", "dmso"))
+#' # Returns: "DMSO"
+#'
+#' find_best_match(c("Sample1", "Sample2"), c("blank", "control"))
+#' # Returns: "Sample1" (no match, returns first choice)
+#'
+#' @export
+find_best_match <- function(choices, patterns) {
+  if (length(choices) == 0) return("")
+  
+  choices_lower <- tolower(choices)
+  for (pattern in patterns) {
+    matches <- choices[grepl(pattern, choices_lower, ignore.case = TRUE)]
+    if (length(matches) > 0) {
+      return(matches[1])
+    }
+  }
+  return(choices[1])
+}
+
+
 
 #' Detect Operating System
 #'
@@ -113,6 +153,49 @@ transform_well_style <- function(wells) sub("^([A-Za-z]+)0+", "\\1", wells)
 
 
 
+list_cbind_efficient <- function(x, y, by=c("uid")) {
+  library(data.table)
+  
+  x <- as.data.table(x)
+  y <- as.data.table(y)
+  
+  common <- setdiff(intersect(names(x), names(y)), by)
+  
+  if(length(common)) {
+    setnames(y, common, paste0(common, ".y"))
+  }
+  
+  y[x, on=by]
+}
+
+
+# **********************************************************************
+# read sqlite ------------------------------------------------------
+# **********************************************************************
+
+read_sqlite <- function(
+    f, skip_tables=c('metadata', 'reduction_pca_variance', 'sqlite_sequence')
+) {
+  print(paste0('read table: ', f))
+  
+  conn <- DBI::dbConnect(RSQLite::SQLite(), dbname=f)
+  tables <- DBI::dbListTables(conn) %>% 
+    setdiff(skip_tables) %>% 
+    set_names(., nm=.)
+  
+  res <- tryCatch(
+    map(tables, 
+        \(x) tbl(conn, x) %>% collect() %>% 
+          janitor::remove_constant(quiet=F)
+    ),
+    error = function(e) print(e),
+    finally = DBI::dbDisconnect(conn)
+  )
+  
+  return(res)
+}
+
+
 
 # **********************************************************************
 # read excel metadata ------------------------------------------------------
@@ -157,16 +240,14 @@ read_metadata <- function(
   print(str_glue("expected sheets: {str_c(sheets, collapse=', ')}"))
   
   # shared: read each sheet into a named flat vector
-  read_sheet <- function(sheet) {
-    readxl::read_xlsx(
-      file, sheet = sheet,
-      range = "B2:Y17",
-      col_names = FALSE, col_types = "text",
-      .name_repair = "minimal"
-    ) %>%
-      as.matrix() %>%
-      as.vector()
-  }
+  read_sheet <- \(sheet) readxl::read_xlsx(
+    file, sheet = sheet,
+    range = "B2:Y17",
+    col_names = FALSE, col_types = "text",
+    .name_repair = "minimal"
+  ) %>%
+    as.matrix() %>%
+    as.vector()
   
   wells <- map2_chr(
     rep(LETTERS[1:16], 24),
@@ -363,7 +444,7 @@ rotate_labels <- function(
 }
 
 
-my_theme <- function(angle=45,
+my_theme <- function(angle=0,
                      fontsize = 7, 
                      family = "sans", 
                      face = NULL, 
@@ -415,8 +496,6 @@ my_theme <- function(angle=45,
 
 
 
-se <- function(x) {sd(x, na.rm=T)/sqrt(length(x)-1)}
-
 
 # format numeric to string, to keep length consistent
 format_num_auto <- function(v, accuracy=0.001) {
@@ -431,6 +510,145 @@ format_num_auto <- function(v, accuracy=0.001) {
   ) %>% as.character() 
 }
 
+
+
+#' Add an automatic log10 scale to a ggplot
+#'
+#' Automatically detects the variable mapped to the selected axis from
+#' ggplot2 aesthetics, calculates positive data limits, and generates
+#' logarithmic breaks.
+#'
+#' @param axis Character. Which axis to transform. Must be either
+#'   `"x"` or `"y"`. Default is `"x"`.
+#'
+#' @param limits Numeric vector of length two. Optional scale limits.
+#'   If NULL (default), limits are automatically calculated from the
+#'   mapped variable in ggplot aesthetics.
+#'
+#' @param breaks Numeric vector. Positions of log-scale breaks.
+#'   If NULL (default), decade breaks are generated automatically.
+#'
+#' @param base Numeric. Logarithm base. Default is 10.
+#'
+#' @param labels Function or character vector. Labels for scale ticks.
+#'   If NULL, labels are generated using scientific notation
+#'   (e.g. 10^0, 10^1, 10^2).
+#'
+#' @param ... Additional arguments passed to `scale_x_log10()` or
+#'   `scale_y_log10()`.
+#'
+#' @return A ggplot2 scale object.
+#'
+#' @examples
+#' ggplot(df, aes(conc, response)) +
+#'   geom_point() +
+#'   scale_log(axis = "x")
+#'
+#' @export
+scale_log <- function(axis = c("x", "y"),
+                      limits = NULL,
+                      breaks = NULL,
+                      base = 10,
+                      labels = NULL,
+                      ...) {
+  
+  axis <- match.arg(axis)
+  
+  structure(
+    list(
+      axis = axis,
+      limits = limits,
+      breaks = breaks,
+      base = base,
+      labels = labels,
+      params = list(...)
+    ),
+    class = "scale_log_auto"
+  )
+}
+
+ggplot_add.scale_log_auto <- function(object, plot, object_name) {
+  
+  axis <- object$axis
+  
+  # extract mapped variable from aes()
+  aes_var <- if (axis == "x") {
+    plot$mapping$x
+  } else {
+    plot$mapping$y
+  }
+  
+  if (is.null(aes_var)) {
+    stop("Cannot detect ", axis, " aesthetic from aes()")
+  }
+  
+  var <- as_name(aes_var)
+  
+  
+  # obtain plotting data
+  data <- plot$data
+  
+  if (is.null(data)) {
+    # fallback to first layer data
+    data <- plot$layers[[1]]$data
+  }
+  
+  if (is.null(data)) {
+    stop("Cannot find plot data")
+  }
+  
+  
+  # auto range
+  if (is.null(object$limits)) {
+    
+    x <- data[[var]]
+    
+    x <- x[x > 0 & is.finite(x)]
+    
+    object$limits <- range(x, na.rm = TRUE)
+  }
+  
+  
+  # auto breaks
+  if (is.null(object$breaks)) {
+    
+    rng <- object$limits
+    
+    object$breaks <-
+      object$base^(
+        floor(log(rng[1], object$base)):
+          ceiling(log(rng[2], object$base))
+      )
+  }
+  
+  
+  if (is.null(object$labels)) {
+    object$labels <- label_math(object$base^.x)
+  }
+  
+  
+  scale <- if (axis == "x") {
+    
+    scale_x_log10(
+      limits = object$limits,
+      breaks = object$breaks,
+      labels = object$labels,
+      ...
+    )
+    
+  } else {
+    
+    scale_y_log10(
+      limits = object$limits,
+      breaks = object$breaks,
+      labels = object$labels,
+      ...
+    )
+  }
+  
+  
+  ggplot_add(scale, plot, object_name)
+}
 
 
 
@@ -540,47 +758,307 @@ ggplot_selector <- function(plot_obj) {
 
 
 
-
-
-
-
 # **********************************************************************
-# general func ---------------------------------------------------------
+# dose response ------------------------------------------------------
 # **********************************************************************
 
-#' Find Best Match from Pattern List
-#'
-#' @description Searches through a vector of choices using a list of patterns,
-#'   returning the first match found. Useful for auto-selecting reference values
-#'   from user data.
-#'
-#' @param choices Character vector of available choices.
-#' @param patterns Character vector of patterns to search for (in order of priority).
-#'
-#' @return The first choice matching any pattern, or the first choice if no
-#'   matches are found. Returns empty string if choices is empty.
-#'
-#' @examples
-#' find_best_match(c("DMSO", "PBS", "Water"), c("blank", "dmso"))
-#' # Returns: "DMSO"
-#'
-#' find_best_match(c("Sample1", "Sample2"), c("blank", "control"))
-#' # Returns: "Sample1" (no match, returns first choice)
-#'
-#' @export
-find_best_match <- function(choices, patterns) {
-  if (length(choices) == 0) return("")
+# func
+model_func <- function(data, ...) {
+  res <- try( 
+    dr4pl(response ~ dose, 
+          data = data, 
+          # method.init = "logistic",
+          # method.robust = "squared",
+          # lowerl = c(theta_4 = 0),
+          ...))
+  if(class(res) == "try-error") res <- NULL
+  return(res)
+}
+
+coef_tidy <- function(model) {
+  if(class(model) != "dr4pl") return(NULL)
   
-  choices_lower <- tolower(choices)
-  for (pattern in patterns) {
-    matches <- choices[grepl(pattern, choices_lower, ignore.case = TRUE)]
-    if (length(matches) > 0) {
-      return(matches[1])
-    }
+  ci <- summary(model) %>% 
+    .[["coefficients"]] %>%
+    as.data.frame()
+  ci <- mutate(ci, CI = map_dbl(
+    seq_along(ci), ~ (ci[[4]][.x] - ci[[3]][.x])/2))
+  # convert logIC50 to IC50
+  ci_ic50 <- ci[2, ] %>% 10^.
+  rownames(ci_ic50) <- "IC50"
+  # combine
+  out <- bind_rows(ci[-2, ], ci_ic50) %>% 
+    .[c(1,4,2,3), c(1,5)] %>%
+    mutate(across(everything(), \(x) format(x, digits=3, scientific=T))) %>%
+    mutate(across(everything(), str_trim)) %>%
+    # mutate(across(everything(), as.numeric)) %>%
+    as_tibble(rownames = "type") %>%
+    mutate(type = str_replace_all(type, "Limit", "")) %>%
+    pivot_wider(names_from = type, 
+                names_glue = "{type}_{.value}", 
+                values_from = c(Estimate, CI))
+  return(out)
+}
+
+pred_func <- function(model, se=F, normalize_residual=T, level=0.95, nboot=200) {
+  if(class(model) != "dr4pl") return(NULL)
+  
+  # model = res$model[[2]]
+  range <- sort(unique(model$data$Dose)) %>% na.omit()
+  from <- ifelse(range[1]<=0, 0.8*range[2], 0.8*range[1])
+  to <- 1.2*last(range)
+  xseq <- exp(seq(from=log(from), to=log(to), length.out=200))
+  
+  # add seq from 0 to min value
+  if(range[1]<=0) {
+    xseq <- c(xseq,
+              exp(seq(from=log(0 + range[2]/1000), to=log(range[2]), length.out=50)))
   }
-  return(choices[1])
+  
+  pred <- MeanResponse(model$parameters, xseq)
+  
+  if (!se) {
+    return(base::data.frame(x=xseq, y=pred))
+  }
+  
+  ## bootstrap residuals
+  # use raw residuals
+  pred0 <- MeanResponse(model$parameters, model$data$Dose)
+  res <- pred0 - model$data$Response
+  if(normalize_residual) {
+    res <- bestNormalize::yeojohnson(res, standardize = F)$x.t %>%
+      scale(center = T,  scale = F) %>%
+      as.vector()
+  }
+  
+  # parallel worker
+  bootres <- suppressMessages(future_map_dfc(seq(nboot), function(x) {
+    response_resample <- pred0 + sample(res, size=length(pred0), replace=TRUE)
+    mboot <- try(dr4pl(model$data$Dose, response_resample))
+    
+    if(class(mboot)=="try-error") {
+      return(NA)
+    }  else { return(MeanResponse(mboot$parameters, xseq)) 
+    } }, .progress = F, .options = furrr_options(seed=NULL))) %>%
+    as.matrix()
+  
+  # pb <- txtProgressBar(max=nboot, style=3)
+  # for (i in seq(nboot)) {
+  #   setTxtProgressBar(pb, i)
+  #   # mboot <- dr4pl(model$data$Dose, pred0 + sample(res, size=length(pred0), replace=TRUE))
+  #   # bootres[, i] <- MeanResponse(mboot$parameters, xseq)
+  # }
+  
+  fit <- data.frame(x = xseq,
+                    y = pred,
+                    ymin = apply(bootres, 1, quantile, probs=(1-level)/2, na.rm=T),
+                    ymax = apply(bootres, 1, quantile, probs=(1+level)/2, na.rm=T) )
+  return(fit)
+}
+
+
+fit_dose_response <- function(
+    df, dose, response, group=NULL, n_worker=8, ...) {
+  
+  library(furrr)
+  library(dr4pl)
+  library(bestNormalize)
+  
+  if(n_worker > 1) plan(multisession, workers = n_worker)
+  
+  fitted <- df %>% 
+    select(dose = !!as.name(dose), 
+           response = !!as.name(response),
+           any_of(group)) %>% 
+    mutate(dose=as.numeric(as.character(dose)), 
+           response=as.numeric(as.character(response))) %>% 
+    group_by(across(any_of(group))) %>%
+    nest() %>% 
+    # .[1:10, ] %>% 
+    mutate(model = future_map(data, model_func, ...))
+  # glimpse(fitted)
+  
+  plan(sequential)
+  
+  # get more expansion data
+  fitted <- fitted %>%
+    mutate(
+      convergence = map_lgl(model, \(x) if(is.null(x)) F else x[["convergence"]]),
+      method_robust = map_chr(model, \(x) if(is.null(x)) "None" else x[["method.robust"]]),
+      coef = map(model, coef_tidy),
+      pred = map(model, pred_func)
+    ) %>% 
+    ungroup()
+  
+  return(fitted)
+}
+
+
+plot_dose_response_dataPrepare <- function(fitted, group=NULL) {
+  # calculate mean and se
+  fitted_mean <- fitted %>% 
+    # filter(convergence) %>% 
+    # filter(!method_robust=="None") %>% 
+    mutate(stats = map(
+      data, 
+      ~ group_by(.x, dose) %>% 
+        summarise(mean=mean(response), se=sd(response)/sqrt(n()), .groups = "drop"))) %>%
+    mutate(top_inhit = map(pred, function(x) round(100*(1-min(x$y)/max(x$y)), 0))) %>%
+    unnest(coef, keep_empty=T) %>%
+    {if(!is.null(group)) unite(., "uid", !!!syms(group), sep="\n", remove = F) else mutate(., uid=1) }%>%
+    mutate(group_label = str_glue("{uid}\n IC50: {str_replace(IC50_Estimate,'[+]','')} ± {str_replace(IC50_CI,'[+]','')}\n Top Inhibition: {top_inhit}%"))
+  
+  return(fitted_mean)
 }
 
 
 
 
+
+
+# **********************************************************************
+# population distance ------------------------------------------------------
+# **********************************************************************
+
+#' Parallel Population Distance Calculation
+#'
+#' @param mat matrix or data.frame of features/coordinates (cells/samples x features)
+#' @param group vector or factor assigning each row to an experimental condition/group
+#' @param method choice of "mmd", "edistance", "wasserstein", or "mahalanobis"
+#' @param ref optional character vector of reference group names. If provided, calculates 
+#'            distance only relative to these references and returns a tidy tibble. 
+#'            If NULL, returns all pairwise distances as a stats::dist object.
+#' @param sigma optional numeric; bandwidth parameter for Gaussian RBF kernel in MMD.
+#' @param max_cells integer; maximum observations per group to subsample. Default is 2000.
+#' @param workers integer; number of CPU cores to use. Default is half of available cores.
+#' @return A `tibble` if `ref` is provided, otherwise a `stats::dist` object.
+calc_distance <- function(mat, group, 
+                          method = c("mmd", "edistance", "wasserstein", "mahalanobis"),
+                          ref = NULL,
+                          sigma = NULL,
+                          max_cells = 2000,
+                          workers = floor(future::availableCores() / 2)) {
+  
+  method <- match.arg(method)
+  mat <- as.matrix(mat)
+  group_vec <- as.character(group)
+  all_groups <- unique(group_vec)
+  
+  if (!is.null(ref)) {
+    ref <- as.character(ref)
+    if (!all(ref %in% all_groups)) {
+      stop("All elements in 'ref' must exist in unique values of 'group'.")
+    }
+  }
+  
+  # Split data once by group
+  group_splits <- split(as.data.frame(mat), group_vec)
+  
+  # Pre-compute pooled covariance if Mahalanobis is requested
+  if (method == "mahalanobis") {
+    means <- t(sapply(group_splits, colMeans))
+    pooled_cov <- stats::cov(mat)
+    inv_cov <- solve(pooled_cov)
+  }
+  
+  # Helper for MMD computation
+  compute_mmd <- function(X, Y, bandwidth) {
+    nX <- nrow(X)
+    nY <- nrow(Y)
+    
+    XY_comb <- rbind(X, Y)
+    D2 <- as.matrix(stats::dist(XY_comb))^2
+    
+    if (is.null(bandwidth)) {
+      non_zero_dists <- D2[D2 > 0]
+      bandwidth <- sqrt(0.5 * median(non_zero_dists))
+    }
+    
+    K <- exp(-D2 / (2 * bandwidth^2))
+    
+    K_xx <- K[1:nX, 1:nX]
+    K_yy <- K[(nX + 1):(nX + nY), (nX + 1):(nX + nY)]
+    K_xy <- K[1:nX, (nX + 1):(nX + nY)]
+    
+    mmd2_xx <- (sum(K_xx) - nX) / (nX * (nX - 1))
+    mmd2_yy <- (sum(K_yy) - nY) / (nY * (nY - 1))
+    mmd2_xy <- mean(K_xy)
+    
+    mmd2 <- mmd2_xx + mmd2_yy - 2 * mmd2_xy
+    return(sqrt(max(0, mmd2)))
+  }
+  
+  # Worker kernel execution
+  calc_single_dist <- function(g1_name, g2_name) {
+    if (g1_name == g2_name) return(0)
+    
+    if (method == "mahalanobis") {
+      diff <- means[g1_name, ] - means[g2_name, ]
+      return(sqrt(as.numeric(t(diff) %*% inv_cov %*% diff)))
+    }
+    
+    g1 <- as.matrix(group_splits[[g1_name]])
+    g2 <- as.matrix(group_splits[[g2_name]])
+    
+    if (nrow(g1) > max_cells) g1 <- g1[sample(seq_len(nrow(g1)), max_cells), ]
+    if (nrow(g2) > max_cells) g2 <- g2[sample(seq_len(nrow(g2)), max_cells), ]
+    
+    switch(
+      method,
+      "mmd" = compute_mmd(g1, g2, bandwidth = sigma),
+      "edistance" = energy::edist(rbind(g1, g2), c(nrow(g1), nrow(g2)))[1, 2],
+      "wasserstein" = transport::wasserstein(transport::pp(g1), transport::pp(g2), p = 2)
+    )
+  }
+  
+  # --- OS-Agnostic Multiprocessing Setup ---
+  old_plan <- future::plan()
+  on.exit(future::plan(old_plan), add = TRUE)
+  
+  if (.Platform$OS.type == "unix") {
+    future::plan(future::multicore, workers = workers)
+  } else {
+    future::plan(future::multisession, workers = workers)
+  }
+  
+  # --- BRANCH 1: Target Reference Distances (Tidy Tibble Output) ---
+  if (!is.null(ref)) {
+    pairs <- expand.grid(group_1 = ref, group_2 = all_groups, stringsAsFactors = FALSE)
+    
+    distances <- furrr::future_map2_dbl(
+      pairs$group_1, 
+      pairs$group_2, 
+      ~calc_single_dist(.x, .y),
+      .options = furrr::furrr_options(seed = TRUE)
+    )
+    
+    pairs$distance <- distances
+    return(tibble::as_tibble(pairs))
+  }
+  
+  # --- BRANCH 2: All Pairwise Distances (dist object Output) ---
+  n_groups <- length(all_groups)
+  
+  idx <- which(lower.tri(matrix(0, n_groups, n_groups)), arr.ind = TRUE)
+  g1_vec <- all_groups[idx[, 1]]
+  g2_vec <- all_groups[idx[, 2]]
+  
+  dist_vals <- furrr::future_map2_dbl(
+    g1_vec, 
+    g2_vec, 
+    ~calc_single_dist(.x, .y),
+    .options = furrr::furrr_options(seed = TRUE)
+  )
+  
+  dist_mat <- matrix(0, nrow = n_groups, ncol = n_groups, 
+                     dimnames = list(all_groups, all_groups))
+  
+  for (k in seq_along(dist_vals)) {
+    i_name <- g1_vec[k]
+    j_name <- g2_vec[k]
+    dist_mat[i_name, j_name] <- dist_vals[k]
+    dist_mat[j_name, i_name] <- dist_vals[k]
+  }
+  
+  return(as.dist(dist_mat))
+}

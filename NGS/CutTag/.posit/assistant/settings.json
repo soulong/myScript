@@ -1,0 +1,10 @@
+{
+  "sandbox": {
+    "enabled": true
+  },
+  "permission": {
+    "edit": {
+      "*.md": "allow"
+    }
+  }
+}

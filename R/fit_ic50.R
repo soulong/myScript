@@ -150,81 +150,81 @@ plot_dose_response_dataPrepare <- function(fitted, group=NULL) {
 }
 
 
-
-plot_dose_response <- function(
-    fitted_prepared, 
-    ...,
-    fact_var1 = NULL, # facet variables
-    fact_var2 = NULL, # facet variables
-    facet_scale = "free",
-    facet_independent = "none", # facet independent 
-    facet_axes = "all", # display all axes
-    point_size = 0.75, # point size
-    line_width = 1, # line width
-    errorbar_width = 0.01,
-    strip_size = 4,
-    legend_key_size = 0.2,
-    x_expand = c(0.05, 0.1),
-    ylim = c(NA, NA),
-    xlab="Dose [uM]", ylab="Response") {
-  
-  # fitted_prepared <- fitted_prepared[1:10,]
-  
-  # process additional aes
-  args <- list(...)
-  args <- lapply(args, function(x) if (rlang::is_string(x)) sym(x) else x)
-  
-  ## base plot
-  p <- fitted_prepared %>% 
-    unnest(stats) %>% 
-    ggplot(aes(dose, mean, !!!args)) +
-    geom_point(size=point_size) +
-    geom_errorbar(aes(ymin=mean-se, ymax=mean+se), 
-                  linewidth=line_width/2, width=errorbar_width) +
-    # ggplot(aes(x, y, color=Metadata_name + Metadata_model_class)) +
-    geom_line(aes(x, y, group=uid), linewidth=line_width,
-              data=unnest(fitted_prepared, pred)) +
-    # # geom_ribbon(data=unnest(res2, pred), aes(x, y, ymin=ymin, ymax=ymax, fill=group), alpha=0.2) +
-    # ggrepel::geom_text_repel(data=mutate(res2, pred2=map2(pred, group, ~ mutate(.x, label=ifelse(row_number()==nrow(.x), .y, NA)))) %>% unnest(pred2), 
-    #                          aes(x,y,label=label), 
-    #                          max.overlaps=10, nudge_x=1, nudge_y=1, size=2, 
-    #                          segment.curvature = -0.1, segment.square = TRUE, segment.color = 'grey',
-    #                          # arrow = arrow(length = unit(0.02, "npc")),
-    #                          min.segment.length=0, show.legend=F, na.rm=T) +
-    scale_x_log10(expand = expansion(mult = x_expand),
-                  labels = function(lab) {
-                    do.call(expression, lapply(paste(lab), function(x) bquote(.(x)))) })
-  
-  ## facet
-  if(!is.null(fact_var1)) {
-    if(!is.null(fact_var2)) {
-      p <- p + ggh4x::facet_grid2(
-        as.formula(str_c(
-          str_c(fact_var1, collapse = "+"), " ~ ", str_c(fact_var2, collapse = "+"))),
-        scales = facet_scale,
-        independent = facet_independent,
-        axes  = facet_axes) 
-    } else {
-      p <- p + ggh4x::facet_grid2(
-        as.formula(str_c(
-          str_c(fact_var1, collapse = "+"), " ~ ", ".")),
-        scales = facet_scale,
-        independent = facet_independent,
-        axes  = facet_axes) }
-  } else {
-    if(!is.null(fact_var2)) {
-      p <- p + ggh4x::facet_grid2(
-        as.formula(str_c(
-          ".", " ~ ", str_c(fact_var2, collapse = "+"))),
-        scales = facet_scale,
-        independent = facet_independent,
-        axes  = facet_axes) }
-  }
-  
-  ## theme
-  p <- p +
-    coord_cartesian(ylim = ylim) +
-    labs(x=xlab, y=ylab)
-  
-  return(p)
-}
+# 
+# plot_dose_response <- function(
+#     fitted_prepared, 
+#     ...,
+#     fact_var1 = NULL, # facet variables
+#     fact_var2 = NULL, # facet variables
+#     facet_scale = "free",
+#     facet_independent = "none", # facet independent 
+#     facet_axes = "all", # display all axes
+#     point_size = 0.75, # point size
+#     line_width = 1, # line width
+#     errorbar_width = 0.01,
+#     strip_size = 4,
+#     legend_key_size = 0.2,
+#     x_expand = c(0.05, 0.1),
+#     ylim = c(NA, NA),
+#     xlab="Dose [uM]", ylab="Response") {
+#   
+#   # fitted_prepared <- fitted_prepared[1:10,]
+#   
+#   # process additional aes
+#   args <- list(...)
+#   args <- lapply(args, function(x) if (rlang::is_string(x)) sym(x) else x)
+#   
+#   ## base plot
+#   p <- fitted_prepared %>% 
+#     unnest(stats) %>% 
+#     ggplot(aes(dose, mean, !!!args)) +
+#     geom_point(size=point_size) +
+#     geom_errorbar(aes(ymin=mean-se, ymax=mean+se), 
+#                   linewidth=line_width/2, width=errorbar_width) +
+#     # ggplot(aes(x, y, color=Metadata_name + Metadata_model_class)) +
+#     geom_line(aes(x, y, group=uid), linewidth=line_width,
+#               data=unnest(fitted_prepared, pred)) +
+#     # # geom_ribbon(data=unnest(res2, pred), aes(x, y, ymin=ymin, ymax=ymax, fill=group), alpha=0.2) +
+#     # ggrepel::geom_text_repel(data=mutate(res2, pred2=map2(pred, group, ~ mutate(.x, label=ifelse(row_number()==nrow(.x), .y, NA)))) %>% unnest(pred2), 
+#     #                          aes(x,y,label=label), 
+#     #                          max.overlaps=10, nudge_x=1, nudge_y=1, size=2, 
+#     #                          segment.curvature = -0.1, segment.square = TRUE, segment.color = 'grey',
+#     #                          # arrow = arrow(length = unit(0.02, "npc")),
+#     #                          min.segment.length=0, show.legend=F, na.rm=T) +
+#     scale_x_log10(expand = expansion(mult = x_expand),
+#                   labels = function(lab) {
+#                     do.call(expression, lapply(paste(lab), function(x) bquote(.(x)))) })
+#   
+#   ## facet
+#   if(!is.null(fact_var1)) {
+#     if(!is.null(fact_var2)) {
+#       p <- p + ggh4x::facet_grid2(
+#         as.formula(str_c(
+#           str_c(fact_var1, collapse = "+"), " ~ ", str_c(fact_var2, collapse = "+"))),
+#         scales = facet_scale,
+#         independent = facet_independent,
+#         axes  = facet_axes) 
+#     } else {
+#       p <- p + ggh4x::facet_grid2(
+#         as.formula(str_c(
+#           str_c(fact_var1, collapse = "+"), " ~ ", ".")),
+#         scales = facet_scale,
+#         independent = facet_independent,
+#         axes  = facet_axes) }
+#   } else {
+#     if(!is.null(fact_var2)) {
+#       p <- p + ggh4x::facet_grid2(
+#         as.formula(str_c(
+#           ".", " ~ ", str_c(fact_var2, collapse = "+"))),
+#         scales = facet_scale,
+#         independent = facet_independent,
+#         axes  = facet_axes) }
+#   }
+#   
+#   ## theme
+#   p <- p +
+#     coord_cartesian(ylim = ylim) +
+#     labs(x=xlab, y=ylab)
+#   
+#   return(p)
+# }
