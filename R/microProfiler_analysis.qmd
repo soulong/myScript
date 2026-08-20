@@ -5,7 +5,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-#---------------------------------
 # prepare data
 
 ```{r}
@@ -25,103 +24,123 @@ library(patchwork)
 library(RSQLite)
 library(RColorBrewer)
 library(tidyverse)
+library(magrittr)
 
 # load helper function
 c("helper.R") %>% 
-  # file.path("F:\\GitHub\\myScript\\R", .) %>%
+  file.path("C:/Users/haohe/GitHub/myScript/R", .) %>%
   walk(source)
 
 # set wd
-r"(D:\P53 TS screening)" %>% 
+r"(E:\TP53\2026-08-12_barcoding_assay\2026-07-30_mix_12cmpd)" %>% 
   norm_path() %>% 
   setwd()
 getwd()
 ```
 
+
+## read inference
+
+```{r}
+infer_db_files <- list.files(
+  '.', pattern='infer.*db$', recursive=T, full.names=T) %>% 
+  set_names(., nm=basename(dirname(.))) %>%
+  str_subset('2026-07-30') %>%
+  str_subset('infer_p53.db', negate = F) %>%
+  print()
+if(length(infer_db_files) > 0) {
+  infer <- infer_db_files %>% 
+    # x <- infer_db_files[2]
+    map(\(x) read_sqlite(x, skip_tables=c('reduction_pca_variance','sqlite_sequence')) %>% 
+          map(\(y) dplyr::select(y, !any_of('features'))) %>% 
+          # combine tables by shared uid key
+          base::Reduce(\(m, n) list_cbind_efficient(m, n, by=c("uid")), .) %>% 
+          as_tibble() %>% 
+          dplyr::select(!any_of(c('filename', 'mask_filename', 'uid'))) %>% 
+          dplyr::relocate(starts_with('umap_'), starts_with('pc_'), .after=last_col()) %>% 
+          dplyr::rename_with(\(z) str_c(z, str_replace(basename(x),'.db', ''), sep='_'), 
+                             c(matches('^(umap_|pc_|pred_)'))) #%>% glimpse
+    ) %>% 
+    list_rbind(names_to='directory') %>% 
+    glimpse()
+}
+
+barcode_db_files <- list.files(
+  '.', pattern='infer.*db$', recursive=T, full.names=T) %>% 
+  set_names(., nm=basename(dirname(.))) %>%
+  str_subset('2026-07-30') %>%
+  str_subset('infer_barcode.db', negate = F) %>%
+  print()
+if(length(barcode_db_files) > 0) {
+  barcode <- barcode_db_files %>% 
+    # x <- barcode_db_files[2]
+    map(\(x) read_sqlite(x, skip_tables=c('reduction_pca_variance','sqlite_sequence')) %>% 
+          map(\(y) dplyr::select(y, !any_of('features'))) %>% 
+          # combine tables by shared uid key
+          base::Reduce(\(m, n) list_cbind_efficient(m, n, by=c("uid")), .) %>% 
+          as_tibble() %>% 
+          dplyr::select(!any_of(c('filename', 'mask_filename', 'uid'))) %>% 
+          dplyr::relocate(starts_with('umap_'), starts_with('pc_'), .after=last_col()) %>% 
+          dplyr::rename_with(\(z) str_c(z, str_replace(basename(x),'.db', ''), sep='_'), 
+                             c(matches('^(umap_|pc_|pred_)'))) #%>% glimpse
+    ) %>% 
+    list_rbind(names_to='directory') %>% 
+    glimpse()
+}
+```
+
 ## read microprofiler
+
 ```{r}
 # microprofiler
 db_files <- list.files(
   '.', pattern='result.*db$', recursive=T, full.names=T) %>% 
   set_names(., nm=basename(dirname(.))) %>%
+  str_subset('2026-07-30') %>%
   print()
 if(length(db_files) > 0) {
   raw_list <- map(db_files, read_sqlite)
-# merge all same table into one list item
+  # merge all same table into one list item
   raw <- names(raw_list[[1]]) %>% 
     set_names(names(raw_list[[1]])) %>% 
     map(\(x) map(raw_list, \(y) y[[x]]) %>% 
           list_rbind(names_to='directory')
         )
-  print(names(raw))
-  # glimpse(mp_raw)
-}
-
-if('cell' %in% names(raw)) {
-  cell <- raw$cell %>% 
-    # filter(is_boundary < 1) %>% 
-    # dplyr::select(!is_boundary) %>% 
-    # mutate(intensity_mean_GFP2IFP=intensity_mean_BFP/
-    #          intensity_mean_IFP) %>%
-    # separate_wider_regex(directory, c("2026-", date=".*", "_P._", cell=".*"),
-    #                      too_few = "align_start", cols_remove=F) %>%
-    # filter(!is.na(density)) %>% 
-    # mutate(cell=factor(cell, c("H1299","TPC1","FPC133"))) %>% 
-    glimpse()
+  rm(raw_list)
+  # glimpse(raw)
   
-  # count(cell, well)
+  # assign each object
+  for(table_name in intersect(names(raw), c('cell','nuclei')))
+    assign(table_name, raw[[table_name]] %>% glimpse())
 }
 ```
 
-## read inference 
-```{r}
-mi_db_files <- list.files(
-  '.', pattern='infer.*db$', recursive=T, full.names=T) %>% 
-  set_names(., nm=basename(dirname(.))) %>%
-  print()
-if(length(mi_db_files) > 0) {
-  mi_raw_list <- mi_db_files %>% 
-    map(\(x) read_sqlite(x, skip_tables=c(
-      'reduction_pca_variance','sqlite_sequence')) %>%  
-        # remove feature BLOB)
-        map(\(y) dplyr::select(y, !any_of('features')) %>% 
-              dplyr::arrange(uid))
-    )
-  # merge all same table into one list item
-  mi_raw <- names(mi_raw_list[[1]]) %>% 
-    set_names(names(mi_raw_list[[1]])) %>% 
-    map(\(x) map(mi_raw_list, \(y) y[[x]]) %>% 
-          list_rbind(names_to='directory') )
-  # model inference have uid in all tables
-  mi_tidy <- base::Reduce(
-    \(x, y) list_cbind_efficient(x, y, by=c("directory", "uid")), mi_raw) %>% 
-    as_tibble() %>% 
-    dplyr::select(!any_of(c('filename', 'mask_filename', 'uid')))
-  # glimpse(mi_tidy)
-}
-```
 
 ## merge all db
+
 ```{r}
-if(exists('mi_tidy')) {
-  join_cols <- intersect(names(cell), names(mi_tidy)) %>% print()
+if(length(infer_db_files) > 0) {
+  join_cols <- intersect(names(cell), names(infer)) %>% print()
   
   cell[join_cols] <- lapply(cell[join_cols], as.character)
-  mi_tidy[join_cols] <- lapply(mi_tidy[join_cols], as.character)
+  infer[join_cols] <- lapply(infer[join_cols], as.character)
+  if(exists('barcode'))
+    barcode[join_cols] <- lapply(barcode[join_cols], as.character)
   
-  cell <- left_join(cell, mi_tidy) %>% 
+  cell <- left_join(cell, infer) %>% 
+    {if(exists('barcode')) right_join(barcode, .) else . } %>% 
     {if('directory' %in% colnames(.)) {
-      relocate(., contains('directory'), .before=1) %>% 
-        mutate(directory=str_replace_all(directory, '__.*', ''))
+      mutate(., directory=str_replace_all(directory, '__.*', ''))
     } else . } %>% 
-    {if('pc_1' %in% colnames(.)) {
-      dplyr::filter(., !is.na(pc_1))
+    {if(any(str_detect(colnames(.), '^umap_'))) {
+      dplyr::filter(., !if_any(matches('^umap_'), is.na))
     } else . } %>% 
     glimpse()
 }
 ```
 
 ## set channel
+
 ```{r}
 if(F) {
   # manually define channel names
@@ -139,12 +158,12 @@ if(F) {
 ```
 
 # merge plate info
+
 ```{r}
 plate_info_files <- list.files(
-  "plate_info_label", ".*xlsx", recursive=T, full.names=T) %>% 
+  ".", ".*xlsx", recursive=F, full.names=T) %>% 
   set_names(., nm=basename(.) %>% str_replace_all(".xlsx", "")) %>% 
   print()
-
 if(length(plate_info_files) > 0) {
   plate_info <- plate_info_files %>%
     map(read_metadata) %>%
@@ -160,86 +179,126 @@ if(length(plate_info_files) > 0) {
     # mutate(Metadata_vector=factor(Metadata_vector, c("Gal4DBD","APP","NOTCH1"))) %>%
     # mutate(Metadata_conc=as.numeric(Metadata_conc))
     print()
-}
-
-setdiff(plate_info$directory, cell$directory)
-cell <- cell %>% 
+  
+  # modify directory to match each other
+  setdiff(plate_info$directory, cell$directory)
+  cell <- cell %>% 
     separate_wider_regex(directory, c(
-    directory=".*", "[ _]", temperature="22|37", "[ _].*", "_+202.*Measurement"), 
-    cols_remove = T, too_few = "align_start") %>% 
-  print()
-
-# merge with plate_info
-cell <- cell %>% 
-  right_join(plate_info, .) %>% 
-  glimpse()
+      directory=".*_", temperature="22|37", "_cmpd", "(?:__Measurement \\d)?"), 
+      cols_remove = T, too_few = "align_start") %>% 
+    print()
+  
+  # merge with plate_info
+  cell <- cell %>% 
+    right_join(plate_info, .) %>% 
+    glimpse()
+}
 ```
 
+# *modify object
 
-# modify object
 ```{r}
 cell_tidy <- cell %>% 
-  dplyr::filter(directory != '20251029 P53 ts mutant screening') %>% 
-  mutate(condition=str_c(temperature, treatment, sep="/") %>% 
-           factor(c("37/None","22/None",
-                    "37/DMSO","37/Bleomycin",
-                    "22/DMSO","22/Bleomycin")), 
-         .before = temperature) %>% 
+  # regular filter
+  dplyr::filter(shape_edge_pixel_ratio < 0.5) %>%
+  dplyr::filter(intensity_mean_ch2 > 250, intensity_mean_ch2 < 2000) %>%
+  dplyr::filter(shape_eccentricity > 0.45, shape_eccentricity < 0.95) %>%
+  # mutate(timepoint=ifelse(is.na(timepoint), "37-2h",
+  #                         ifelse(timepoint=="1", "22-4h", "22-8h"))) %>%
+  # optical barcode
+  {if(exists('barcode')) 
+    dplyr::filter(., pred_prob_infer_barcode > 0.75) %>% 
+      dplyr::select(!any_of(c("ground_truth", "pred_prob_infer_barcode"))) %>% 
+      dplyr::rename(barcode = pred_class_infer_barcode) else .} %>% 
+  # inference: convert prob to [0, 1] for single type prob
+  {if(exists("infer"))
+    mutate(., target_pred_prob = case_when(
+      pred_class_infer_p53 == "pos" ~ pred_prob_infer_p53,
+      pred_class_infer_p53 == "neg" ~ 1 - pred_prob_infer_p53,
+      TRUE ~ NA_real_), .before=pred_prob_infer_p53) %>%
+      dplyr::select(!c(pred_class_infer_p53, pred_prob_infer_p53)) else .} %>% 
+  # factorize cmpd, conc
+  {if("cmpd" %in% colnames(.)) {
+    mutate(., cmpd=factor(cmpd, unique(c("DMSO", cmpd))))
+  } else . } %>% 
+  {if("conc" %in% colnames(.)) {
+    mutate(., conc=round(as.numeric(conc), 4) %>% 
+             factor(., levels=sort(unique(.))))
+  } else . } %>% 
   glimpse()
 
-count(cell_tidy, directory)
-count(cell_tidy, well)
-count(cell_tidy, field)
+
+if(F) {
+  cell$intensity_mean_ch2 %>% quantile(seq(0, 1, 0.05))
+  cell$shape_eccentricity %>% quantile(seq(0, 1, 0.05))
+  count(cell_tidy, directory)
+  count(cell_tidy, well) %>% print(n=50)
+  count(cell_tidy, field)
+  print(cell_tidy)
+  glimpse(cell_tidy)
+}
 ```
 
+# *summarize to field
 
-# summarize to field
 ```{r}
-measure_pattern <- "shape|intensity|granularity|glcm|radial"
+measure_pattern <- "shape|intensity|granularity|glcm|radial|pred_prob"
 
 meta_colnames <- colnames(cell_tidy) %>% 
   str_subset(measure_pattern, negate=T) %>% 
-  setdiff(c("object_id", "label", "is_boundary")) %>% 
-  str_subset(c("^pc_"), negate = T) %>% 
-  str_subset(c("^umap_"), negate = T) %>% 
-  str_subset(c("^pred_"), negate = T) %>% 
+  str_subset("object_id|label|well", negate = T) %>% 
+  str_subset("pc_|umap_", negate=T) %>% 
   print()
 
-# summarize per field
-cell_field <- cell_tidy %>% 
-  reframe(across(matches(measure_pattern), 
-                 \(x) mean(x, trim=0.1, na.rm=T)),
-          cell_count = n(),
-          # custom stats
-          pos_prob = mean(pred_class == "pos"),
-          pos_ratio = sum(pred_prob > 0.6 & pred_class == "pos") / length(pred_prob),
-          # group by
-          .by=any_of(c(meta_colnames))) %>% 
-  select(!starts_with("intensity_")) %>% 
-  mutate(cell_area=round(shape_area * cell_count)) %>% 
+# per_field
+cell_tidy_per_field <- cell_tidy %>% 
+  reframe(across(matches(measure_pattern), \(x) mean(x, trim=0, na.rm=T)),
+          target_pos_ratio = mean(target_pred_prob > 0.5, na.rm = T), # custom stats
+          cell_count_per_field = n(),  # cell count
+          .by=any_of(c(meta_colnames, "field"))) %>%   # group by
   glimpse()
+# per_well
+cell_tidy_per_well <- cell_tidy_per_field %>% 
+  reframe(across(!field, list(mean=\(x) mean(x, trim=0, na.rm=T), se=se)),
+          .by=any_of(setdiff(meta_colnames, "field"))) %>% 
+  relocate(ends_with("_se"), .after = last_col()) %>% 
+  glimpse()
+
+# glimpse(cell_tidy_per_field)
+```
+
+# save data
+
+```{r}
+list(
+  # cell_tidy=cell_tidy,
+  cell_tidy_per_field=cell_tidy_per_field,
+  cell_tidy_per_well=cell_tidy_per_well
+) %>% 
+  export(str_glue("{Sys.Date()}_data.xlsx"))
 ```
 
 
-
-# ---------------------------------
 # plot
 
-## pdata
+## *prepare data
+
 ```{r}
-plot_obj <- "cell_field"
+# plot_obj <- "cell_tidy"
+plot_obj <- "cell_tidy_per_field"
 
 plot_items <- colnames(get(plot_obj)) %>% 
   setdiff(meta_colnames) %>% 
-  str_subset("object_id|is_boundary", negate=T) %>% 
-  str_subset("statistic$", negate=T) %>% 
-  str_subset("pvalue$", negate=T) %>% 
-  # str_subset("Granularity_[5-9]_", negate=T) %>% 
-  str_subset("^intensity_", negate=T) %>% 
+  str_subset("well|label|object_id|is_boundary|ground_truth", negate=T) %>% 
+  str_subset("shape_edge_pixel_ratio|shape_area|shape_extent|shape_solidity|shape_perimeter", negate=T) %>% 
+  str_subset("shape_feret_diameter_max|shape_major_axis_length|shape_minor_axis_length", negate=T) %>% 
+  str_subset("intensity_median|intensity_std|intensity_sum", negate=T) %>% 
+  str_subset("statistic|pvalue", negate=T) %>% 
+  str_subset("pc_|umap_", negate=T) %>% 
+  str_subset("glcm_", negate=T) %>%
   str_subset("spot", negate=T) %>%
   unique() %>% 
   print()
-
 # plot_items <-c("cell_count", "cell_area", "shape_extent")
 
 pdata <- get(plot_obj) %>% 
@@ -251,11 +310,6 @@ pdata <- get(plot_obj) %>%
   #              {factor(., unique(sort(as.numeric(.))))}, 
   #            .before=1)
   # } else .} %>% 
-
-  # mutate(conc=factor(conc, sort(unique(conc)))) %>%
-  # mutate(conc=as.numeric(as.character(conc))) %>% 
-  # mutate(conc=round(as.numeric(conc), 4)) %>%
-  
   # # norm by day0 ---------------------------
   # mutate(across(all_of(plot_items),
   #               \(x) round(x / mean(x[date == "06-28"], na.rm=T), 3)),
@@ -278,27 +332,15 @@ pdata <- get(plot_obj) %>%
   glimpse()
 ```
 
-## save
+## regular plot
+
 ```{r}
-list(
-  # cell_tidy=cell_tidy,
-  cell_field=cell_field
-) %>% 
-  export(str_glue("{Sys.Date()}_cell_field.xlsx"))
-```
-
-
-## plot
-```{r}
-# set x conc range
-# xrng <- range(pdata$conc[pdata$conc > 0], na.rm=T) %>% print()
-# scale_x_log10(#limits=c(xrng[1], 10^ceiling(log10(xrng[2]))),
-#               breaks=10^(floor(log10(xrng[1])):ceiling(log10(xrng[2]))),
-#               labels=\(x) scales::label_math(10^.x)(log10(x))) +
-
 plot_list <- plot_items %>% 
   map(\(x) pdata %>% 
-        ggplot(aes(mutant, !!as.name(x), fill=condition, color=condition)) +
+        # filter(!is.na(cmpd)) %>% 
+        ggplot(aes(barcode, !!as.name(x), 
+                   fill=cmpd, 
+                   color=cmpd)) +
         # stat_summary(geom="errorbar", fun.data=mean_sdl,
         #              fun.args=list(mult=1), # check Hmisc::smean.sdl
         #              width=0.4, color="grey20", # "#4575b4"
@@ -311,7 +353,7 @@ plot_list <- plot_items %>%
                      position=position_dodge(0.75)) +
         # stat_summary(geom="point", fun=mean, size=1.5) +
         # geom_smooth(se=T) +
-        facet_wrap(vars(directory), ncol=4,
+        facet_wrap(vars(temperature), ncol=3,
                    scales="free_x", axes="all") +
         # facet_grid(rows=vars(cell, density),
         #            cols=vars(cmpd),
@@ -321,25 +363,178 @@ plot_list <- plot_items %>%
         #   method="wilcox.test", size=1) +
         # guides(fill="none") +
         # scale_fill_hue(direction=-1) +
-        # scale_fill_brewer("BuGn") +
+        # scale_fill_manual(values = colorRampPalette(brewer.pal(8, "Dark2"))(18)) +
         # scale_fill_manual(values=colorRampPalette(brewer.pal(9, "BuGn"))(11)) +
-        # scale_log("x") + 
+        # scale_log("x") +
         # labs(x="Dose (uM)") +
-        my_theme(angle=90) +
-        theme(legend.position="top")
+        theme_hh(axis_text_x_angle = 45) +
+        theme(legend.position="top") +
+        guides(fill=guide_legend(nrow=1), color=guide_legend(nrow=1))
   )
-pdf(str_glue("{Sys.Date()}_{plot_obj}_plot.pdf"), width=16, height=7)
+pdf(str_glue("{Sys.Date()}_{plot_obj}_plot.pdf"), width=15, height=3)
 # print(plot_list[1])
 for(i in plot_list) print(i)
 while(dev.cur() != 1) dev.off()
+```
 
+## custom plot
+
+```{r}
+cpdata <- cell_tidy_per_well %>% 
+  filter(!is.na(cmpd)) %>% 
+  filter(str_detect(barcode, "Y220C")) %>%
+  pivot_wider(id_cols = c(conc, temperature, timepoint, barcode),
+              names_from = cell, 
+              values_from = c(target_pred_prob_mean, target_pred_prob_se, 
+                              target_pos_ratio_mean, target_pos_ratio_se,
+                              intensity_mean_ch3_mean, intensity_mean_ch3_se)) %>% 
+  print()
+export(cpdata, str_glue("{Sys.Date()}_plot_correlation.xlsx"))
+
+cpdata %>% 
+  ggplot(aes(target_pred_prob_mean_Y220C, target_pred_prob_mean_mix)) +
+  geom_smooth(linewidth = 0.75, color="#084594", fill="transparent", method="lm") +
+  geom_point(aes(color=conc), size=2) +
+  geom_errorbar(aes(xmin = target_pred_prob_mean_Y220C - target_pred_prob_se_Y220C,
+                    xmax = target_pred_prob_mean_Y220C + target_pred_prob_se_Y220C,
+                    color=conc),
+                orientation="y", width = 0, linewidth = 0.5) +
+  geom_errorbar(aes(ymin = target_pred_prob_mean_mix - target_pred_prob_se_mix,
+                    ymax = target_pred_prob_mean_mix + target_pred_prob_se_mix,
+                    color=conc),
+                orientation="x", width = 0, linewidth = 0.5) +
+  ggpubr::stat_cor(method="pearson", show.legend = F) +
+  scale_color_manual(values = colorRampPalette(c("#BBD7FB", "#06346F"))(12)) +
+  facet_wrap(vars(timepoint), scales="fixed", axes="all") +
+  labs(x="Puncta probability (single Y220C well)", 
+       y="Puncta probability (decoded from pooling)") +
+  theme_hh()
+ggsave(str_glue("{Sys.Date()}_plot_correlation.pdf"), width=9, height=3)
+
+
+fitted <- cell_tidy_per_field %>% 
+  filter(!is.na(cmpd)) %>%
+  filter(timepoint == "37-2h") %>%
+  filter(str_detect(barcode, "Y220C")) %>%
+  fit_dose_response("conc", "target_pred_prob", group=c("cell", "timepoint", "barcode"))
+
+sc150 <- fitted %>% 
+  unnest(coef) %>%
+  mutate(ICs=map(
+    model, \(x) dr4pl::IC(x, inhib.percent=c(0.85)) %>% 
+      enframe() %>% pivot_wider() )) %>% 
+  unnest(ICs) %>% 
+  dplyr::select(!c(data, model, pred)) %>% 
+  dplyr::rename(sc150=`InhibPercent:0.85`) %>% 
+  glimpse()
+
+fitted_prepared <- plot_dose_response_dataPrepare(fitted, group="cell") %>% 
+  left_join(sc150)
+unnest(fitted_prepared, pred) %>% 
+  dplyr::select(!c(data, model)) %>% 
+  export(str_glue("{Sys.Date()}_plot_fit.xlsx"))
+
+unnest(fitted, pred) %>% 
+  ggplot(aes(x, y, color=cell)) +
+  geom_line() + 
+  stat_summary(aes(dose, response),
+               geom="pointrange", 
+               size=0.2, #color="#4575b4", 
+               fun=mean, 
+               fun.min = function(x) mean(x) - se(x), 
+               fun.max = function(x) mean(x) + se(x),
+               data=unnest(fitted_prepared, data), show.legend = F) +
+  geom_text(aes(x, y, label=label),
+    size=4, nudge_x=0.5, nudge_y=0.25,
+    data=unnest(fitted_prepared, pred) %>%
+      arrange(x, y) %>%
+      slice_head(n=1, by=any_of("cell")) %>%
+      mutate(label=str_c("SC150: ", format_num_auto(sc150))), show.legend = F) +
+  # facet_wrap(vars(cell), scales="fixed", axes="all") +
+  # facet_grid(rows=vars(barcode),
+  #            cols=vars(timepoint),
+  #            scales="fixed", axes="all") +
+  scale_color_manual(values = c("mix"="#06346F", "Y220C"="#BC4F4F")) +
+  scale_log("x") +
+  labs(x="Dose (uM)", y="Puncta probability", caption="mean_se") +
+  theme_hh(axis_text_x_angle = 0)
+ggsave(str_glue("{Sys.Date()}_plot_fit.pdf"), width=4, height=3)
+```
+
+## heatmap
+
+```{r}
+metrics <- c(#"shape_equivalent_diameter_area_mean",
+             # "intensity_mean_ch3_mean",
+             "target_pred_prob_mean",
+             "target_pos_ratio_mean"
+)
+
+cell_tidy_per_well %>%
+  # filter(!is.na(cmpd)) %>% 
+  filter(cmpd != "UA019") %>%
+  # filter(temperature == "37") %>%# view()
+  mutate(cmpd=droplevels(cmpd)) %>% 
+  # filter(!barcode %in% c("WT", "R273H")) %>% #, "R248Q", "R175H"
+  arrange(barcode) %>%
+  dplyr::select(any_of(c("barcode", "cmpd", "temperature", metrics))) %T>% 
+  export(str_glue("{Sys.Date()}_plot_heatmap.xlsx")) %>% 
+  df2heatmap(metrics, row_by = "barcode", col_by = "cmpd",
+             color=c("white"=0.2,"#06346F"=0.6), #scale_scope="split",
+             border = "grey90",
+             split_by = c("temperature"), 
+             scale=NULL, row_cluster = F,
+             x_text_angle=90) %>% 
+  cowplot::plot_grid (plotlist = ., ncol=1)
+ggsave(str_glue("{Sys.Date()}_plot_heatmap.pdf"), width=7, height=6)
+
+# cell_tidy_per_well %>%
+#   filter(is.na(cmpd)) %>% 
+#   slice_max(cell_count_per_field_mean, n=1, by=c(cell, timepoint)) %>% 
+#   # filter(cell != "mix") %>% 
+#   # filter(timepoint == "37-2h") %>%# view()
+#   # filter(!barcode %in% c("WT", "R248Q", "R273H", "R175H")) %>% 
+#   arrange(timepoint) %>%
+#   dplyr::select(any_of(c("cell", "timepoint", metrics))) %T>% 
+#   export(str_glue("{Sys.Date()}_plot_heatmap_pure.xlsx")) %>% 
+#   df2heatmap(metrics, row_by = "cell", col_by = "timepoint",
+#              color=c("white"=0.15,"#06346F"=0.8), #scale_scope="split",
+#              border = "grey90",
+#              # split_by = c("timepoint"), 
+#              scale=NULL, row_cluster = F,
+#              x_text_angle=90) %>% 
+#   cowplot::plot_grid (plotlist = ., ncol=1)
+# ggsave(str_glue("{Sys.Date()}_plot_heatmap_pure.pdf"), width=7, height=4)
+```
+
+## reduction
+
+```{r}
+# single cell level pca
+dr_plot <- cell_tidy %>% 
+  dplyr::filter(temperature == "37") %>%
+  # filter(!barcode %in% c("WT", "R248Q", "R273H", "R175H")) %>% 
+  dplyr::slice_sample(n=100, by=any_of(meta_colnames)) %>% 
+  ggplot(aes(pc_1_infer_p53, pc_2_infer_p53, 
+             fill=barcode)) +
+  ggrastr::geom_point_rast(size=2, stroke=0, alpha=0.7, shape=21, raster.dpi=300) +
+  scale_fill_manual(values = colorRampPalette(brewer.pal(8, "Dark2"))(18)) +
+  # facet_wrap(vars(temperature), ncol=4,
+  #            scales="free_x", axes="all") +
+  facet_grid(rows=vars(barcode),
+             cols=vars(cmpd),
+             scales="fixed", axes="all") +
+  theme_hh(axis_text_x_angle = 0) +
+  theme(legend.position="top")
+ggsave(str_glue("{Sys.Date()}_dr_plot_37.pdf"), dr_plot, width=20, height=24)
 ```
 
 
 
-#---------------------------------
+
 # statistics analysis
 ## setting
+
 ```{r}
 statistics_obj <- "cell"
 # statistics_obj <- "cell_filter_field"
@@ -359,6 +554,7 @@ ctrl_value <- ifelse(isTRUE(use_median), "median", ctrl_value)
 ```
 
 ## foldchange
+
 ```{r}
 if(get_foldchange) {
   print(str_glue("use [{statistics_obj}] to calculate foldchange"))
@@ -370,10 +566,7 @@ if(get_foldchange) {
       grouping_vars=statistics_grouping_vars, use_median=use_median,
       log_trans=log_trans, mean_trim=0.05, const=0)
   )} else rm(list=str_subset(ls(), str_glue("^{statistics_obj}.*_stat$")))
-```
 
-## pvalue
-```{r}
 if(get_pvalue) {
   print(str_glue("use [{statistics_obj}] to calculate pvalue"))
   assign(
@@ -394,17 +587,27 @@ if(get_pvalue) {
 ```
 
 
+## pca distance
+```{r}
+pca_distance <- cell_tidy %>% 
+  nest_by(across(any_of(setdiff(meta_colnames, c("well","cmpd"))))) %>% 
+  mutate(data = calc_distance(
+    dplyr::select(data, starts_with("pc_")), # select pca features
+    group=data[["cmpd"]], 
+    method="mmd", ref="DMSO") %>% 
+      list() ) %>% 
+  unnest(data)
+pca_distance <- pca_distance %>% 
+  dplyr::select(!group_1) %>% 
+  dplyr::rename(cmpd=group_2)
+
+```
 
 
-
-
-
-
-
-# --------------------------------------------------
 # dose response
 
 ## fit setting
+
 ```{r}
 # fitting_source: cell, cell_stat, cell_field, cell_field_stat
 # glimpse(summary_per_field_normCtrl)
@@ -416,6 +619,7 @@ fitting_groupby <- c("Metadata_prefix","Metadata_cmpd")
 ```
 
 ## fit curve
+
 ```{r}
 fitted <- get(fitting_obj) %>% 
   # filter(Metadata_cmpd=="Sema") %>% 
@@ -434,15 +638,9 @@ fitted_prepared <- plot_dose_response_dataPrepare(
 ```
 
 ## plot fitted result
-```{r}
-conc_series <- unique(pull(unnest(fitted_prepared, data), dose))
-log_trans_sigma <- conc_series %>% setdiff(0) %>% min() %>% 
-  magrittr::divide_by(10)
-axis_breaks <- conc_series %>% setdiff(0) %>% range() %>% 
-  log10() %>% round() %>% {seq(.[1], .[2], by=1)} %>% {10^(.)}
-if(0 %in% conc_series) axis_breaks <- c(0, axis_breaks)
 
-p <-  ggplot() +
+```{r}
+p <- ggplot() +
   stat_summary(aes(dose, response),
                geom="pointrange", 
                color="#4575b4", size=0.2,
@@ -466,22 +664,16 @@ p <-  ggplot() +
   #            cols=vars(Metadata_vector),
   #            scales="fixed", axes="all") +
   labs(x="Dose (uM)", y=fitting_Y, caption="mean_se") +
-  scale_x_continuous(
-    transform=scales::pseudo_log_trans(sigma=log_trans_sigma, base=10),
-    breaks=axis_breaks,
-    # labels=scales::label_number(drop0trailing=T),
-    expand=expansion(mult=c(0.05, 0.1)),
-    labels=function(lab) {
-      do.call(expression, lapply(paste(lab), function(x) bquote(.(x))))
-      } ) +
+  scale_log("x") +
   # coord_cartesian(ylim=c(0, NA)) +
-  my_theme(angle=45)
+  theme_hh(axis_text_x_angle = 45)
 # p
 ggsave(str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.pdf"),
         p, width=12, height=3, limitsize=F)
 ```
 
 ## save fitted data
+
 ```{r}
 fitted_save_data <- fitted %>% 
   unnest(coef) %>%
@@ -498,7 +690,4 @@ writexl::write_xlsx(
   list(fitted=fitted_save_data), 
   str_glue("{Sys.Date()}_{fitting_obj}_DoseFit_{fitting_Y}.xlsx"))
 ```
-
-
-
 

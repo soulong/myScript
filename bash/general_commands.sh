@@ -108,23 +108,26 @@ sudo mkdir -p /mnt/e && sudo mount -t drvfs E: /mnt/e
 sudo mkdir -p /mnt/f && sudo mount -t drvfs '\\100.66.1.2\f' /mnt/f
 ## remove a mounted driver
 sudo rmdir /mnt/driveX
+
 ## get all wsl location
 Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss
 ## compact wsl image
+cmd
 diskpart
-select vdisk file="C:\Users\zhugy\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx"
+select vdisk file="C:\Users\haohe\AppData\Local\wsl\{8e226ec4-8187-498d-9566-0629b9ae7e01}\ext4.vhdx"
 attach vdisk readonly
 compact vdisk
 detach vdisk
 exit
+
 ## export wsl image 
-image_name=Ubuntu-24.04
 wsl --shutdown && wsl -l -v 
-wsl --export $image_name F:/wsl/${image_name}.tar
+$image_name = "Ubuntu-26.04"
+wsl --export $image_name "E:/wsl_backup/${image_name}.tar"
 ## remove wsl image
 wsl --unregister $image_name # release old image space
 ## import wsl iamge
-wsl --import $image_name C:/wsl/ "C:/Users/haohe/Desktop/Ubuntu-24.04.tar" --version 2
+wsl --import $image_name "C:/wsl/" "E:/wsl/${image_name}.tar" --version 2
 
 
 ################## NGS ##################
